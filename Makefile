@@ -1,7 +1,7 @@
 MSG=update
 
 clean:
-	rm -fr build && rm -fr bin && rm output.bin
+	rm -fr build && rm -fr bin && rm output.bin || true
 
 debug-build: clean
 	mkdir -p bin && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug && make -j

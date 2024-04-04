@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     std::cout << "# data points:  " << n << "\n";
     std::cout << "# queries:      " << nq << "\n";
 
-    // pre processing
+    // pre-processing
     // classify nodes by label
     std::unordered_map<int32_t, std::vector<int32_t>> node_label_index;
     for (int32_t i = 0; i < nodes.size(); ++i) {
@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
 
     // solve type 0 query
     auto s0 = std::chrono::system_clock::now();
-    solve_query_type00(nodes, queries, query_type_index[0], knn_results);
+    solve_query_type0(nodes, queries, query_type_index[0], knn_results);
     auto e0 = std::chrono::system_clock::now();
     std::cout << "solve query0 cost " << time_cost(s0, e0) << " (ms)\n";
 

@@ -13,6 +13,7 @@ int main(int argc, char** argv) {
     // Also accept other path for source data
     if (argc > 1) {
         source_path = std::string(argv[1]);
+        query_path = std::string(argv[2]);
     }
 
     //  read process

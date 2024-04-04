@@ -11,3 +11,7 @@ float EuclideanDistance(const std::vector<float>& a,
     }
     return sum;
 }
+
+int64_t time_cost(const std::chrono::system_clock::time_point &st, const std::chrono::system_clock::time_point &en) {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(en - st).count();
+}

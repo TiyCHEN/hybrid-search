@@ -6,24 +6,27 @@
 #include "query_type3.h"
 
 int main(int argc, char** argv) {
-    std::string source_path = "dummy-data.bin";
-    std::string query_path = "dummy-queries.bin";
-    std::string knn_save_path = "output.bin";
+    std::string source_path = "../data/dummy-data.bin";
+    std::string query_path = "../data/dummy-queries.bin";
+    std::string knn_save_path = "../output.bin";
 
     // Also accept other path for source data
     if (argc > 1) {
         source_path = std::string(argv[1]);
     }
 
+    //  read process
+    auto s_read = std::chrono::system_clock::now();
     // Read data points
     std::vector<Node> nodes;
     ReadNode(source_path, NODE_DIMENSION, nodes);
-
     // Read queries
     std::vector<Query> queries;
     // classify nodes by type
     std::vector<std::vector<int32_t>> query_type_index(QUERY_TYPE_SIZE);
     ReadQuery(query_path, QUERY_DIMENTION, queries, query_type_index);
+    auto e_read = std::chrono::system_clock::now();
+    std::cout << "read cost " << time_cost(s_read, e_read) << " (ms)\n";
 
     uint32_t n = nodes.size();
     uint32_t nq = queries.size();
@@ -50,18 +53,28 @@ int main(int argc, char** argv) {
     }
 
     // solve type 0 query
-    // TODO:
-    solve_query_type0(nodes, queries, query_type_index[0], knn_results);
+    auto s0 = std::chrono::system_clock::now();
+    solve_query_type00(nodes, queries, query_type_index[0], knn_results);
+    auto e0 = std::chrono::system_clock::now();
+    std::cout << "solve query0 cost " << time_cost(s0, e0) << " (ms)\n";
+
     // solve type 1 query
-    solve_query_type1(nodes, queries, node_label_index, query_type_index[1], knn_results);
+    auto s1 = std::chrono::system_clock::now();
+    solve_query_type11(nodes, queries, node_label_index, query_type_index[1], knn_results);
+    auto e1 = std::chrono::system_clock::now();
+    std::cout << "solve query1 cost " << time_cost(s1, e1) << " (ms)\n";
 
     // solve type 2 query
-    // TODO:
+    auto s2 = std::chrono::system_clock::now();
     solve_query_type2(nodes, queries, node_label_index, query_type_index[2], knn_results);
+    auto e2 = std::chrono::system_clock::now();
+    std::cout << "solve query2 cost " << time_cost(s2, e2) << " (ms)\n";
 
     // solve type 3 query
-    // TODO:
+    auto s3 = std::chrono::system_clock::now();
     solve_query_type3(nodes, queries, node_label_index, query_type_index[3], knn_results);
+    auto e3 = std::chrono::system_clock::now();
+    std::cout << "solve query3 cost " << time_cost(s3, e3) << " (ms)\n";
 
     // // save the results
     SaveKNN(knn_results, knn_save_path);

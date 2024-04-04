@@ -30,14 +30,12 @@ void SaveKNN(const std::vector<std::vector<uint32_t>>& knns,
 void ReadNode(const std::string& file_path,
               const int num_dimensions,
               std::vector<Node>& nodes) {
-    std::cout << "Reading Data: " << file_path << std::endl;
     std::ifstream ifs;
     ifs.open(file_path, std::ios::binary);
     assert(ifs.is_open());
     uint32_t N;  // num of points
     ifs.read((char*)&N, sizeof(uint32_t));
     nodes.reserve(N);
-    std::cout << "# of points: " << N << std::endl;
     std::vector<float> buff(num_dimensions);
     while (ifs.read((char*)buff.data(), num_dimensions * sizeof(float))) {
         nodes.emplace_back();
@@ -50,7 +48,6 @@ void ReadNode(const std::string& file_path,
         }
     }
     ifs.close();
-    std::cout << "Finish Reading Data\n";
 }
 
 /// @brief Reading binary data vectors. Raw data store as a (N x dim)
@@ -60,14 +57,12 @@ void ReadQuery(const std::string& file_path,
                const int num_dimensions,
                std::vector<Query>& queries,
                std::vector<std::vector<int32_t>> &type_index) {
-    std::cout << "Reading Query: " << file_path << std::endl;
     std::ifstream ifs;
     ifs.open(file_path, std::ios::binary);
     assert(ifs.is_open());
     uint32_t N;  // num of points
     ifs.read((char*)&N, sizeof(uint32_t));
     queries.reserve(N);
-    std::cout << "# of points: " << N << std::endl;
     std::vector<float> buff(num_dimensions);
     int counter = 0;
     while (ifs.read((char*)buff.data(), num_dimensions * sizeof(float))) {
@@ -84,7 +79,6 @@ void ReadQuery(const std::string& file_path,
         type_index[now_query._type].push_back(counter++);
     }
     ifs.close();
-    std::cout << "Finish Reading Query\n";
 }
 
 void ReadKNN(std::vector<std::vector<uint32_t>>& knns,

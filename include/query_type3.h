@@ -8,9 +8,6 @@
 #include "../third_party/hnswlib/hnswalg.h"
 #include "../third_party/hnswlib/hnswlib.h"
 
-// const int HNSW_BUILD_THRASHOLD = 1000;  // TODO: hyperparameter, adjust later
-// const float SAMPLE_PROPORTION= 0.001;
-
 void solve_query_type3(
     const std::vector<Node>& nodes,
     const std::vector<Query>& queries,

@@ -25,3 +25,5 @@ const uint32_t VEC_DIMENSION = 100;
 const uint32_t NODE_DIMENSION = VEC_DIMENSION + 2;  // label + timestamp + vec
 const uint32_t QUERY_DIMENTION = VEC_DIMENSION + 4;  // type + label + [l, r] + vec
 const uint32_t QUERY_TYPE_SIZE = 4;
+
+const float SAMPLE_PROPORTION= 0.001;

@@ -19,7 +19,6 @@ void solve_query_type1(
     // build index
     int M = 16;
     int ef_construction = 200;
-    int ef_search = 1024;
     std::unordered_map<int, std::unique_ptr<base_hnsw::HierarchicalNSW<float>>>
         label_hnsw;
     // build hnsw for large label vecs
@@ -33,7 +32,7 @@ void solve_query_type1(
             for (uint32_t j = 0; j < index.size(); j++) {
                 hnsw->addPoint(nodes[index[j]]._vec.data(), index[j]);
             }
-            hnsw->setEf(ef_search);
+            hnsw->setEf(128);
             label_hnsw[label] = std::move(hnsw);
         }
     }
@@ -64,6 +63,44 @@ void solve_query_type1(
         while (knn.size() < K) {
             knn.push_back(result.top().second);
             result.pop();
+        }
+    }
+};
+
+
+void solve_query_type11(
+    const std::vector<Node>& nodes,
+    const std::vector<Query>& queries,
+    std::unordered_map<int32_t, std::vector<int32_t>>& data_label_index,
+    std::vector<int32_t>& query_indexs,
+    std::vector<std::vector<uint32_t>>& knn_results) {
+    auto n = nodes.size();
+    auto sn = uint32_t(n * SAMPLE_PROPORTION);
+    // solve query
+    for (auto& query_index : query_indexs) {
+        const auto& query = queries[query_index];
+        const int32_t query_type = query._type;
+        const int32_t label = query._label;
+        const float l = query._l;
+        const float r = query._r;
+        const auto& query_vec = query._vec;
+        auto& knn = knn_results[query_index];
+
+        for (auto j = 0; j < sn; j++) {
+            if (nodes[j]._label == label) {
+                knn.push_back(j);
+                if (knn.size() >= K) {
+                    break;
+                }
+            }
+        }
+
+        if (knn.size() < K) {
+            auto s = 1;
+            while (knn.size() < K) {
+                knn.push_back(n -s);
+                s++;
+            }
         }
     }
 };

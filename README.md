@@ -3,6 +3,20 @@
 ## Run
 download dataset from website, put it into folder `data` and then `bash run.sh`.
 
+### Run other data
+compile
+```
+make build
+```
+run 1m data
+```
+make run-1m
+```
+or run 10m data
+```
+make run-10m
+```
+
 ## Submit
 
 install reprozip before submit

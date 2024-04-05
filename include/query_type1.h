@@ -38,7 +38,6 @@ void solve_query_type1(
             }
             label_hnsw[label]->setEf(ef_search);
         }
-    }
 
     // solve query
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
@@ -52,22 +51,23 @@ void solve_query_type1(
         const auto& query_vec = query._vec;
         auto& knn = knn_results[query_index];
 
-        if (!data_label_index.count(label)) {
-            throw std::invalid_argument("Can't find the match label!");
-        }
-        std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
-            result = label_hnsw[label]->searchKnn(query_vec.data(), 100);
-        } else {
-            for (auto id : data_label_index[label]) {
-                float dist = EuclideanDistance(nodes[id]._vec, query_vec);
-                result.push(std::make_pair(-dist, id));
+            if (!data_label_index.count(label)) {
+                throw std::invalid_argument("Can't find the match label!");
             }
-        }
+            std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
+            if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
+                result = label_hnsw[label]->searchKnn(query_vec.data(), 100);
+            } else {
+                for (auto id : data_label_index[label]) {
+                    float dist = EuclideanDistance(nodes[id]._vec, query_vec);
+                    result.push(std::make_pair(-dist, id));
+                }
+            }
 
-        while (knn.size() < K) {
-            knn.push_back(result.top().second);
-            result.pop();
+            while (knn.size() < K) {
+                knn.push_back(result.top().second);
+                result.pop();
+            }
         }
     }
 }

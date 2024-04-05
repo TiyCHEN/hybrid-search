@@ -74,7 +74,6 @@ void solve_query_type1(
     }
 }
 
-
 void solve_query_type11(
     const std::vector<Node>& nodes,
     const std::vector<Query>& queries,

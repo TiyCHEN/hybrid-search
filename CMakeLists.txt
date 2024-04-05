@@ -3,6 +3,15 @@ project(HYBRID)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# include(CheckCXXCompilerFlag)
+# CHECK_CXX_COMPILER_FLAG("-mavx" COMPILER_SUPPORTS_MAVX)
+# if(COMPILER_SUPPORTS_MAVX)
+#     message("useavx")
+#     add_compile_options(-mavx)
+#     add_definitions(-DUSE_AVX)
+# endif()
+
+
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -38,4 +47,10 @@ endif()
 # add_definitions(-lboost -ltcmalloc_minimal)
 
 add_executable(main main.cc)
+if(COMPILER_SUPPORTS_MAVX)
+    message("Compiler supports AVX. USE_AVX will be defined.")
+    add_compile_options(-mavx2)
+    target_compile_definitions(main PUBLIC USE_AVX)
+endif()
+
 # target_link_libraries(main src)

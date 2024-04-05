@@ -42,7 +42,12 @@ void ReadNode(const std::string& file_path,
         auto& now_node = nodes.back();
         now_node._label = static_cast<float>(buff[0]);
         now_node._timestamp = static_cast<float>(buff[1]);
-        now_node._vec.resize(num_dimensions - 2);
+        #if defined(USE_AVX)
+            now_node._vec.resize(num_dimensions - 2 + ALIGN_SIMD_AVX);
+        #else
+            now_node._vec.resize(num_dimensions - 2);
+        #endif
+        
         for (int d = 2; d < num_dimensions; ++d) {
             now_node._vec[d - 2] = static_cast<float>(buff[d]);
         }

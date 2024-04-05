@@ -22,6 +22,7 @@
 
 const int K = 100;  // top-k knns
 const uint32_t VEC_DIMENSION = 100;
+const uint32_t ALIGN_SIMD_AVX = 12;
 const uint32_t NODE_DIMENSION = VEC_DIMENSION + 2;  // label + timestamp + vec
 const uint32_t QUERY_DIMENTION = VEC_DIMENSION + 4;  // type + label + [l, r] + vec
 const uint32_t QUERY_TYPE_SIZE = 4;

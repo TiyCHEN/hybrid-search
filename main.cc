@@ -4,8 +4,10 @@
 #include "query_type1.h"
 #include "query_type2.h"
 #include "query_type3.h"
+#include "hnsw_simd_dist_func.h"
 
 int main(int argc, char** argv) {
+    SetSIMDFunc();
     std::string source_path = "../data/dummy-data.bin";
     std::string query_path = "../data/dummy-queries.bin";
     std::string knn_save_path = "../output.bin";
@@ -15,7 +17,7 @@ int main(int argc, char** argv) {
         source_path = std::string(argv[1]);
         query_path = std::string(argv[2]);
     }
-
+    
     //  read process
     auto s_read = std::chrono::system_clock::now();
     // Read data points

@@ -14,19 +14,19 @@ void solve_query_type0(
     // build index
     const int M = 16;
     const int ef_construction = 200;
-    const int ef_search = 1024;
+    const int ef_search = 128;
     base_hnsw::L2Space space(VEC_DIMENSION);
     std::unique_ptr<base_hnsw::HierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::HierarchicalNSW<float>>(
                 &space, nodes.size(), M, ef_construction);
 
-#pragma omp parallel for schedule(dynamic, 64)
+#pragma omp parallel for schedule(dynamic, NUM_THREAD)
     for (uint32_t i = 0; i < nodes.size(); i++) {
         single_hnsw->addPoint(nodes[i]._vec.data(), i);
     }
     single_hnsw->setEf(ef_search);
 
     // solve query
-#pragma omp parallel for schedule(dynamic, 64)
+#pragma omp parallel for schedule(dynamic, NUM_THREAD)
     for (uint32_t i = 0; i < query_indexs.size(); i++)  {
         const auto& query = queries[query_indexs[i]];
         const int32_t query_type = query._type;

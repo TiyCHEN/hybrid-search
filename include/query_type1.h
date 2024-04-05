@@ -30,18 +30,18 @@ void solve_query_type1(
             base_hnsw::L2Space space(VEC_DIMENSION);
             auto hnsw = std::make_unique<base_hnsw::HierarchicalNSW<float>>(
                     &space, index.size(), M, ef_construction);
-
-#pragma omp parallel for schedule(dynamic, 64)
-            for (uint32_t j = 0; j < index.size(); j++) {
-                hnsw->addPoint(nodes[index[j]]._vec.data(), index[j]);
-            }
-            hnsw->setEf(ef_search);
             label_hnsw[label] = std::move(hnsw);
+
+#pragma omp parallel for schedule(dynamic, NUM_THREAD)
+            for (uint32_t j = 0; j < index.size(); j++) {
+                label_hnsw[label]->addPoint(nodes[index[j]]._vec.data(), index[j]);
+            }
+            label_hnsw[label]->setEf(ef_search);
         }
     }
 
     // solve query
-//#pragma omp parallel for schedule(dynamic, 64)
+#pragma omp parallel for schedule(dynamic, NUM_THREAD)
     for (uint32_t i = 0; i < query_indexs.size(); i++)  {
         const auto query_index = query_indexs[i];
         const auto& query = queries[query_index];

@@ -27,3 +27,5 @@ const uint32_t QUERY_DIMENTION = VEC_DIMENSION + 4;  // type + label + [l, r] + 
 const uint32_t QUERY_TYPE_SIZE = 4;
 
 const float SAMPLE_PROPORTION= 0.001;
+
+const int NUM_THREAD = 64;

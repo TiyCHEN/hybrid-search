@@ -47,6 +47,8 @@ endif()
 # add_definitions(-lboost -ltcmalloc_minimal)
 
 add_executable(main main.cc)
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-mavx" COMPILER_SUPPORTS_MAVX)
 if(COMPILER_SUPPORTS_MAVX)
     message("Compiler supports AVX. USE_AVX will be defined.")
     add_compile_options(-mavx2)

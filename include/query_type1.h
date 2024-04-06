@@ -7,7 +7,7 @@
 #include "util.h"
 #include "hnswlib/hnswalg.h"
 #include "hnswlib/hnswlib.h"
-
+#include "hnsw_simd_dist_func.h"
 const int HNSW_BUILD_THRASHOLD = 300;  // TODO: hyperparameter, adjust later
 
 void solve_query_type1(
@@ -55,11 +55,16 @@ void solve_query_type1(
             throw std::invalid_argument("Can't find the match label!");
         }
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
+        
         if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
             result = label_hnsw[label]->searchKnn(query_vec.data(), 100);
         } else {
             for (auto id : data_label_index[label]) {
-                float dist = EuclideanDistance(nodes[id]._vec, query_vec);
+                #if #defined(USE_AVX)
+                    float dist = SIMDFunc(nodes[id]._vec.data(),query_vec.data(),VEC_DIMENSION + ALIGN_SIMD_AVX);
+                #else
+                    float dist = EuclideanDistance(nodes[id]._vec, query_vec);
+                #endif
                 result.push(std::make_pair(-dist, id));
             }
         }

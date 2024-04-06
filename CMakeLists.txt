@@ -51,7 +51,7 @@ endif()
 # Compile flags
 # add_definitions(-lboost -ltcmalloc_minimal)
 
-add_executable(main main.cc)
+add_executable(main main.cc hnsw_simd_func.cc)
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-mavx" COMPILER_SUPPORTS_MAVX)
 if(COMPILER_SUPPORTS_MAVX)

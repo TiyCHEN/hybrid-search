@@ -41,7 +41,7 @@ export float F32L2AVX512(const float *pv1, const float *pv2, size_t dim) {
 
 void SetSIMDFunc(){
     // std::cout<<"Set F32L2AVX512"<<std::endl;
-    SIMDFunc = F32L2AVX512
+    SIMDFunc = F32L2AVX512;
 }
 
 

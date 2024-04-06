@@ -8,6 +8,8 @@
 
 int main(int argc, char** argv) {
     SetSIMDFunc();
+//    std::string source_path = "../data/contest-data-release-1m.bin";
+//    std::string query_path = "../data/contest-queries-release-1m.bin";
     std::string source_path = "../data/dummy-data.bin";
     std::string query_path = "../data/dummy-queries.bin";
     std::string knn_save_path = "../output.bin";
@@ -17,7 +19,7 @@ int main(int argc, char** argv) {
         source_path = std::string(argv[1]);
         query_path = std::string(argv[2]);
     }
-    
+    std::cout << "NUM_THREAD: " << NUM_THREAD << '\n';
     //  read process
     auto s_read = std::chrono::system_clock::now();
     // Read data points
@@ -63,7 +65,7 @@ int main(int argc, char** argv) {
 
     // solve type 1 query
     auto s1 = std::chrono::system_clock::now();
-    solve_query_type11(nodes, queries, node_label_index, query_type_index[1], knn_results);
+    solve_query_type1(nodes, queries, node_label_index, query_type_index[1], knn_results);
     auto e1 = std::chrono::system_clock::now();
     std::cout << "solve query1 cost " << time_cost(s1, e1) << " (ms)\n";
 

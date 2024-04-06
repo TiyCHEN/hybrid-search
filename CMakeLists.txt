@@ -22,8 +22,13 @@ endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -pthread -march=native")
 set(CMAKE_CXX_FLAGS_DEBUG  "-O0 -g2 -ggdb -pthread -Wall -DINFO")
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_SOURCE_DIR}/third_party)
+# Includes
+set(HYBRID_SRC_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
+set(HYBRID_THIRD_PARTY_INCLUDE_DIR
+        ${PROJECT_SOURCE_DIR}/third_party
+)
+
+include_directories(${HYBRID_SRC_INCLUDE_DIR} ${HYBRID_THIRD_PARTY_INCLUDE_DIR})
 
 # find_package(Boost REQUIRED)
 # if (Boost_FOUND)

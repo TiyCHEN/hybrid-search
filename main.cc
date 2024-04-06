@@ -6,8 +6,6 @@
 #include "query_type3.h"
 
 int main(int argc, char** argv) {
-//    std::string source_path = "../data/contest-data-release-1m.bin";
-//    std::string query_path = "../data/contest-queries-release-1m.bin";
     std::string source_path = "../data/dummy-data.bin";
     std::string query_path = "../data/dummy-queries.bin";
     std::string knn_save_path = "../output.bin";

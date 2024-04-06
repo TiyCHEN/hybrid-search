@@ -52,5 +52,4 @@ void solve_query_type0(
                 result.pop();
             }
         }
-    }
 }

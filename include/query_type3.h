@@ -43,4 +43,4 @@ void solve_query_type3(
             }
         }
     }
-};
+}

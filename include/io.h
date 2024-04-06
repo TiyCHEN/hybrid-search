@@ -42,7 +42,12 @@ void ReadNode(const std::string& file_path,
         auto& now_node = nodes.back();
         now_node._label = static_cast<float>(buff[0]);
         now_node._timestamp = static_cast<float>(buff[1]);
-        now_node._vec.resize(num_dimensions - 2);
+        #if defined(USE_AVX)
+            now_node._vec.resize(num_dimensions - 2 + ALIGN_SIMD_AVX);
+        #else
+            now_node._vec.resize(num_dimensions - 2);
+        #endif
+        
         for (int d = 2; d < num_dimensions; ++d) {
             now_node._vec[d - 2] = static_cast<float>(buff[d]);
         }
@@ -72,7 +77,12 @@ void ReadQuery(const std::string& file_path,
         now_query._label = static_cast<float>(buff[1]);
         now_query._l = static_cast<float>(buff[2]);
         now_query._r = static_cast<float>(buff[3]);
-        now_query._vec.resize(num_dimensions - 4);
+        #if defined(USE_AVX)
+            now_query._vec.resize(num_dimensions - 4 + ALIGN_SIMD_AVX);
+        #else
+            now_query._vec.resize(num_dimensions - 4);
+        #endif
+        
         for (int d = 4; d < num_dimensions; ++d) {
             now_query._vec[d - 4] = static_cast<float>(buff[d]);
         }

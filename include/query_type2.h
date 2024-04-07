@@ -5,8 +5,8 @@
 #include "core.h"
 #include "data_format.h"
 #include "util.h"
-#include "../third_party/hnswlib/hnswalg.h"
-#include "../third_party/hnswlib/hnswlib.h"
+#include "hnswlib/rangehnswalg.h"
+#include "hnswlib/hnswlib.h"
 
 void solve_query_type2(
     const std::vector<Node>& nodes,
@@ -14,33 +14,45 @@ void solve_query_type2(
     std::unordered_map<int32_t, std::vector<int32_t>>& data_label_index,
     std::vector<int32_t>& query_indexs,
     std::vector<std::vector<uint32_t>>& knn_results) {
-    auto n = nodes.size();
-    auto sn = uint32_t(n * SAMPLE_PROPORTION);
+    // build index
+    const int M = 16;
+    const int ef_construction = 200;
+    const int ef_search = 128;
+#if defined(USE_AVX)
+    // try use simd16 to get wider data process line.
+        base_hnsw::L2Space space(VEC_DIMENSION + ALIGN_SIMD_AVX);
+#else
+    base_hnsw::L2Space space(VEC_DIMENSION);
+#endif
+    std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
+            &space, nodes.size(), M, ef_construction);
+
+#pragma omp parallel for schedule(dynamic, NUM_THREAD)
+    for (uint32_t i = 0; i < nodes.size(); i++) {
+        single_hnsw->addPoint(nodes[i]._vec.data(), i);
+    }
+    single_hnsw->setEf(ef_search);
+
     // solve query
-    for (auto& query_index : query_indexs) {
-        const auto& query = queries[query_index];
+#pragma omp parallel for schedule(dynamic, NUM_THREAD)
+    for (uint32_t i = 0; i < query_indexs.size(); i++)  {
+        const auto& query = queries[query_indexs[i]];
         const int32_t query_type = query._type;
         const int32_t label = query._label;
         const float l = query._l;
         const float r = query._r;
         const auto& query_vec = query._vec;
-        auto& knn = knn_results[query_index];
+        auto& knn = knn_results[query_indexs[i]];
 
-        for (auto j = 0; j < sn; j++) {
-            if (nodes[j]._timestamp >= l && nodes[j]._timestamp <= r) {
-                knn.push_back(j);
-                if (knn.size() >= K) {
-                    break;
-                }
-            }
-        }
+        std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
+        result = single_hnsw->searchKnn(query_vec.data(), 100);
 
-        if (knn.size() < K) {
-            auto s = 1;
-            while (knn.size() < K) {
-                knn.push_back(n -s);
-                s++;
+        while (knn.size() < K) {
+            if (result.empty()) {
+                break;
             }
+            knn.push_back(result.top().second);
+            result.pop();
         }
     }
 };

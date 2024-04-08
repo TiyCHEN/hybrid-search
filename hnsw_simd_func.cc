@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stddef.h>
 #include "hnsw_simd_dist_func.h"
+#include "hnswlib/hnswlib.h"
 SIMDFuncType SIMDFunc = nullptr;
 // using SIMDFuncType = float (*)(const float *, const float *, int);
 #if defined(__GNUC__)
@@ -15,10 +16,12 @@ SIMDFuncType SIMDFunc = nullptr;
 #endif
 
 #if defined(__AVX512F__)
-export float F32L2AVX512(const float *pv1, const float *pv2, size_t dim) {
+export float F32L2AVX512(const void *pv1_, const void *pv2_,const void *dim_) {
     float PORTABLE_ALIGN64 TmpRes[16];
+    size_t dim = *((float*)(dim_));
     size_t dim16 = dim >> 4;
-
+    const float* pv1 = (float*)(pv1_);
+    const float* pv2 = (float*)(pv2_);
     const float *pEnd1 = pv1 + (dim16 << 4);
 
     __m512 diff, v1, v2;
@@ -43,16 +46,19 @@ export float F32L2AVX512(const float *pv1, const float *pv2, size_t dim) {
 
 void SetSIMDFunc(){
     // std::cout<<"Set F32L2AVX512"<<std::endl;
-    SIMDFunc = F32L2AVX512;
+    // SIMDFunc = F32L2AVX512;
+    SIMDFunc = base_hnsw::HybridSimd;
 }
 
 
 #elif defined(__AVX__)
-export float F32L2AVX(const float *pv1, const float *pv2, size_t dim) {
+export float F32L2AVX(const void *pv1_, const void *pv2_, const void* dim_) {
     // std::cout<<dim<<std::endl;
     float PORTABLE_ALIGN32 TmpRes[8];
+    size_t dim = *((float*)(dim_));
     size_t dim16 = dim >> 4;
-
+    const float* pv1 = (float*)(pv1_);
+    const float* pv2 = (float*)(pv2_);
     const float *pEnd1 = pv1 + (dim16 << 4);
 
     __m256 diff, v1, v2;
@@ -80,12 +86,16 @@ export float F32L2AVX(const float *pv1, const float *pv2, size_t dim) {
 
 void SetSIMDFunc(){
     // std::cout<<"Set F32L2AVX"<<std::endl;
-    SIMDFunc = F32L2AVX;
+    // SIMDFunc = F32L2AVX;
+    SIMDFunc = base_hnsw::HybridSimd;
 }
 
 #else
-    float F32L2BF(const float *pv1, const float *pv2, size_t dim) {
+    float F32L2BF(const void *pv1_, const void *pv2_, const void* dim_) {
         float res = 0;
+        const float* pv1 = (float*)(pv1_);
+        const float* pv2 = (float*)(pv2_);
+        size_t dim = *((float*)(dim_));
         for (size_t i = 0; i < dim; i++) {
             float t = pv1[i] - pv2[i];
             res += t * t;

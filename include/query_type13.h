@@ -63,7 +63,7 @@ void solve_query_type13(
         } else {
             for (auto id : data_label_index[label]) {
                 #if #defined(USE_AVX)
-                    float dist = SIMDFunc(nodes[id]._vec.data(),query_vec.data(),VEC_DIMENSION + ALIGN_SIMD_AVX);
+                    float dist = SIMDFunc(nodes[id]._vec.data(),query_vec.data(),VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistance(nodes[id]._vec, query_vec);
                 #endif
@@ -103,7 +103,7 @@ void solve_query_type13(
                     continue;
                 }
                 #if #defined(USE_AVX)
-                    float dist = SIMDFunc(nodes[id]._vec.data(),query_vec.data(),VEC_DIMENSION + ALIGN_SIMD_AVX);
+                    float dist = SIMDFunc(nodes[id]._vec.data(),query_vec.data(),VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistance(nodes[id]._vec, query_vec);
                 #endif

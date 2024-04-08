@@ -93,7 +93,6 @@ L2SqrSIMD16ExtAVX(const void *pVect1v, const void *pVect2v, const void *qty_ptr)
 #endif
 
 #if defined(USE_SSE)
-
 static float
 L2SqrSIMD16ExtSSE(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
     float *pVect1 = (float *) pVect1v;
@@ -203,6 +202,17 @@ L2SqrSIMD4ExtResiduals(const void *pVect1v, const void *pVect2v, const void *qty
 
     return (res + res_tail);
 }
+
+// the qty_ptr is 100, we seperate it into 96 + 4.
+static float
+HybridSimd(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+    size_t dim1_ = 96;
+    size_t dim2_ = 4;
+    float *pVect1 = (float *) pVect1v;
+    float *pVect2 = (float *) pVect2v;
+    return L2SqrSIMD16ExtSSE(pVect1v,pVect2v,&dim1_) + L2SqrSIMD4Ext(pVect1+dim1_,pVect2+dim1_,&dim2_);
+}
+
 #endif
 
 class L2Space : public SpaceInterface<float> {
@@ -224,7 +234,9 @@ class L2Space : public SpaceInterface<float> {
             L2SqrSIMD16Ext = L2SqrSIMD16ExtAVX;
     #endif
 
-        if (dim % 16 == 0)
+        if (dim == 100)
+            fstdistfunc_ = HybridSimd;
+        else if (dim % 16 == 0)
             fstdistfunc_ = L2SqrSIMD16Ext;
         else if (dim % 4 == 0)
             fstdistfunc_ = L2SqrSIMD4Ext;

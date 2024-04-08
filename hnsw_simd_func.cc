@@ -18,7 +18,7 @@ SIMDFuncType SIMDFunc = nullptr;
 #if defined(__AVX512F__)
 export float F32L2AVX512(const void *pv1_, const void *pv2_,const void *dim_) {
     float PORTABLE_ALIGN64 TmpRes[16];
-    size_t dim = *((float*)(dim_))
+    size_t dim = *((float*)(dim_));
     size_t dim16 = dim >> 4;
     const float* pv1 = (float*)(pv1_);
     const float* pv2 = (float*)(pv2_);

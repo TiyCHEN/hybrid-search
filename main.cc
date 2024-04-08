@@ -37,13 +37,13 @@ int main(int argc, char** argv) {
 
     // solve query type 0 & 2
     auto s02 = std::chrono::system_clock::now();
-    solve_query_type02(data_set, query_set, knn_results);
+    SolveQueryType02(data_set, query_set, knn_results);
     auto e02 = std::chrono::system_clock::now();
     std::cout << "solve query02 cost " << time_cost(s02, e02) << " (ms)\n";
 
     // solve query type 1 & 3
     auto s13 = std::chrono::system_clock::now();
-    solve_query_type13(data_set, query_set, knn_results);
+    SolveQueryType13(data_set, query_set, knn_results);
     auto e13 = std::chrono::system_clock::now();
     std::cout << "solve query13 cost " << time_cost(s13, e13) << " (ms)\n";
 

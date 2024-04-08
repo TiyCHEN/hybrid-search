@@ -11,7 +11,7 @@
 
 const int HNSW_BUILD_THRASHOLD = 300;  // TODO: hyperparameter, adjust later
 
-void solve_query_type13(
+void SolveQueryType13(
     DataSet& data_set,
     QuerySet& query_set,
     std::vector<std::vector<uint32_t>>& knn_results) {

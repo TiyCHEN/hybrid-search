@@ -3,7 +3,7 @@
 #include "data_format.h"
 #include "hnswlib/rangehnswalg.h"
 
-void solve_query_type02(
+void SolveQueryType02(
         DataSet& data_set,
         QuerySet& query_set,
         std::vector<std::vector<uint32_t>>& knn_results) {

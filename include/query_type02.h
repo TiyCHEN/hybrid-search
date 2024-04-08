@@ -12,12 +12,8 @@ void solve_query_type02(
     const int M = 16;
     const int ef_construction = 200;
     const int ef_search = 512 + 128 + 64;
-#if defined(USE_AVX)
-    // try use simd16 to get wider data process line.
-        base_hnsw::L2Space space(VEC_DIMENSION + ALIGN_SIMD_AVX);
-#else
+
     base_hnsw::L2Space space(VEC_DIMENSION);
-#endif
     std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
             &space, nodes.size(), M, ef_construction);
 

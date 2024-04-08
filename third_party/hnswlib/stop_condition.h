@@ -35,7 +35,6 @@ class MultiVectorL2Space : public BaseMultiVectorSpace<DOCIDTYPE> {
         if (AVXCapable())
             L2SqrSIMD16Ext = L2SqrSIMD16ExtAVX;
     #endif
-
         if (dim % 16 == 0)
             fstdistfunc_ = L2SqrSIMD16Ext;
         else if (dim % 4 == 0)

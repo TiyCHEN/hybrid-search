@@ -1,11 +1,8 @@
 #include "io.h"
 #include "util.h"
-#include "query_type0.h"
-#include "query_type1.h"
-#include "query_type2.h"
-#include "query_type3.h"
 #include "hnsw_simd_dist_func.h"
 #include "query_type02.h"
+#include "query_type13.h"
 
 int main(int argc, char** argv) {
     SetSIMDFunc();
@@ -64,6 +61,11 @@ int main(int argc, char** argv) {
     auto e02 = std::chrono::system_clock::now();
     std::cout << "solve query02 cost " << time_cost(s02, e02) << " (ms)\n";
 
+    auto s13 = std::chrono::system_clock::now();
+    solve_query_type13(nodes, queries, node_label_index, query_type_index, knn_results);
+    auto e13 = std::chrono::system_clock::now();
+    std::cout << "solve query13 cost " << time_cost(s13, e13) << " (ms)\n";
+
     // solve type 0 query
 //    auto s0 = std::chrono::system_clock::now();
 //    solve_query_type0(nodes, queries, query_type_index[0], knn_results);
@@ -71,10 +73,10 @@ int main(int argc, char** argv) {
 //    std::cout << "solve query0 cost " << time_cost(s0, e0) << " (ms)\n";
 
     // solve type 1 query
-    auto s1 = std::chrono::system_clock::now();
-    solve_query_type1(nodes, queries, node_label_index, query_type_index[1], knn_results);
-    auto e1 = std::chrono::system_clock::now();
-    std::cout << "solve query1 cost " << time_cost(s1, e1) << " (ms)\n";
+//    auto s1 = std::chrono::system_clock::now();
+//    solve_query_type1(nodes, queries, node_label_index, query_type_index[1], knn_results);
+//    auto e1 = std::chrono::system_clock::now();
+//    std::cout << "solve query1 cost " << time_cost(s1, e1) << " (ms)\n";
 
     // solve type 2 query
 //    auto s2 = std::chrono::system_clock::now();
@@ -83,10 +85,10 @@ int main(int argc, char** argv) {
 //    std::cout << "solve query2 cost " << time_cost(s2, e2) << " (ms)\n";
 
     // solve type 3 query
-    auto s3 = std::chrono::system_clock::now();
-    solve_query_type3(nodes, queries, node_label_index, query_type_index[3], knn_results);
-    auto e3 = std::chrono::system_clock::now();
-    std::cout << "solve query3 cost " << time_cost(s3, e3) << " (ms)\n";
+//    auto s3 = std::chrono::system_clock::now();
+//    solve_query_type3(nodes, queries, node_label_index, query_type_index[3], knn_results);
+//    auto e3 = std::chrono::system_clock::now();
+//    std::cout << "solve query3 cost " << time_cost(s3, e3) << " (ms)\n";
 
     // // save the results
     SaveKNN(knn_results, knn_save_path);

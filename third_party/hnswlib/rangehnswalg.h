@@ -50,6 +50,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     char *data_level0_memory_{nullptr};
     char **linkLists_{nullptr};
     std::vector<int> element_levels_;  // keeps level of each element
+    mutable std::mutex timestamp_lock;
+    std::unordered_map<tableint, float> element_timestamp_;
 
     size_t data_size_{0};
 
@@ -314,18 +316,19 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         tableint ep_id,
         const void *data_point,
         size_t ef,
+        const float l,
+        const float r,
         BaseFilterFunctor* isIdAllowed = nullptr,
-        BaseSearchStopCondition<dist_t>* stop_condition = nullptr) const {
+        BaseSearchStopCondition<dist_t>* stop_condition = nullptr) {
         VisitedList *vl = visited_list_pool_->getFreeVisitedList();
         vl_type *visited_array = vl->mass;
         vl_type visited_array_tag = vl->curV;
-
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidate_set;
 
         dist_t lowerBound;
         if (bare_bone_search || 
-            (!isMarkedDeleted(ep_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id))))) {
+            (isInRange(ep_id, l, r) && !isMarkedDeleted(ep_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id))))) {
             char* ep_data = getDataByInternalId(ep_id);
             dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
             lowerBound = dist;
@@ -406,7 +409,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 #endif
 
                         if (bare_bone_search || 
-                            (!isMarkedDeleted(candidate_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(candidate_id))))) {
+                            (isInRange(candidate_id, l, r) && !isMarkedDeleted(candidate_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(candidate_id))))) {
                             top_candidates.emplace(dist, candidate_id);
                             if (!bare_bone_search && stop_condition) {
                                 stop_condition->add_point_to_result(getExternalLabel(candidate_id), currObj1, dist);
@@ -939,6 +942,15 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     }
 
 
+    bool isInRange(tableint internalId, const float l, const float r) {
+//        timestamp_lock.lock();
+        const float timestamp = element_timestamp_[internalId];
+//        timestamp_lock.unlock();
+        // fixme: float cmp should use eps
+        return l <= timestamp && timestamp <= r;
+    }
+
+
     unsigned short int getListCount(linklistsizeint * ptr) const {
         return *((unsigned short int *)ptr);
     }
@@ -953,7 +965,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     * Adds point. Updates the point if it is already in the index.
     * If replacement of deleted elements is enabled: replaces previously deleted point if any, updating it with new point
     */
-    void addPoint(const void *data_point, labeltype label, bool replace_deleted = false) {
+    void addPoint(const void *data_point, labeltype label, float timestamp, bool replace_deleted = false) {
         if ((allow_replace_deleted_ == false) && (replace_deleted == true)) {
             throw std::runtime_error("Replacement of deleted elements is disabled in constructor");
         }
@@ -961,7 +973,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         // lock all operations with element by label
         std::unique_lock <std::mutex> lock_label(getLabelOpMutex(label));
         if (!replace_deleted) {
-            addPoint(data_point, label, -1);
+            addPoint(data_point, label, -1, timestamp);
             return;
         }
         // check if there is vacant place
@@ -1152,7 +1164,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     }
 
 
-    tableint addPoint(const void *data_point, labeltype label, int level) {
+    tableint addPoint(const void *data_point, labeltype label, int level, float timestamp) {
         tableint cur_c = 0;
         {
             // Checking if the element with the same label already exists
@@ -1192,6 +1204,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             curlevel = level;
 
         element_levels_[cur_c] = curlevel;
+        timestamp_lock.lock();
+        element_timestamp_[cur_c] = timestamp;
+        timestamp_lock.unlock();
 
         std::unique_lock <std::mutex> templock(global);
         int maxlevelcopy = maxlevel_;
@@ -1271,16 +1286,12 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnn(const void *query_data, size_t k, BaseFilterFunctor* isIdAllowed = nullptr) const {
+    searchKnn(const void *query_data, size_t k, const float l, const float r, BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
         
         tableint currObj = enterpoint_node_;
-//         std::cout << currObj << std::endl;
-//         std::cout << *getDataByInternalId(enterpoint_node_) << std::endl;
-//         std::cout << dist_func_param_ << std::endl;
         dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
-        // std::cout << curdist << std::endl;
         for (int level = maxlevel_; level > 0; level--) {
             bool changed = true;
             while (changed) {
@@ -1309,14 +1320,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
 
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
-        bool bare_bone_search = !num_deleted_ && !isIdAllowed;
-        if (bare_bone_search) {
-            top_candidates = searchBaseLayerST<true>(
-                    currObj, query_data, std::max(ef_, k), isIdAllowed);
-        } else {
-            top_candidates = searchBaseLayerST<false>(
-                    currObj, query_data, std::max(ef_, k), isIdAllowed);
-        }
+        top_candidates = searchBaseLayerST<false>(
+                currObj, query_data, std::max(ef_, k), l, r, isIdAllowed);
 
         while (top_candidates.size() > k) {
             top_candidates.pop();
@@ -1326,7 +1331,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             result.push(std::pair<dist_t, labeltype>(rez.first, getExternalLabel(rez.second)));
             top_candidates.pop();
         }
-        // std::cout << result.size() << std::endl;
+//         std::cout << result.size() << std::endl;
         return result;
     }
 

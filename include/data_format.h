@@ -4,6 +4,7 @@
 
 struct Node
 {
+    int32_t _id;
     int32_t _label;
     float _timestamp;
     std::vector<float> _vec;

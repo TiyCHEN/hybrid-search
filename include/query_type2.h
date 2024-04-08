@@ -29,7 +29,7 @@ void solve_query_type2(
 
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
     for (uint32_t i = 0; i < nodes.size(); i++) {
-        single_hnsw->addPoint(nodes[i]._vec.data(), i);
+        single_hnsw->addPoint(nodes[i]._vec.data(), nodes[i]._id, nodes[i]._timestamp);
     }
     single_hnsw->setEf(ef_search);
 
@@ -45,7 +45,7 @@ void solve_query_type2(
         auto& knn = knn_results[query_indexs[i]];
 
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        result = single_hnsw->searchKnn(query_vec.data(), 100);
+        result = single_hnsw->searchKnn(query_vec.data(), 100, l, r);
 
         while (knn.size() < K) {
             if (result.empty()) {

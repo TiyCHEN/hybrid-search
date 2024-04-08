@@ -23,6 +23,9 @@ int main(int argc, char** argv) {
     // Read data points
     std::vector<Node> nodes;
     ReadNode(source_path, NODE_DIMENSION, nodes);
+    std::sort(nodes.begin(), nodes.end(), [&](const Node& a, const Node& b){
+        return a._timestamp < b._timestamp;
+    });
     // Read queries
     std::vector<Query> queries;
     // classify nodes by type

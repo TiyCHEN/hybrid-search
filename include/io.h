@@ -37,9 +37,11 @@ void ReadNode(const std::string& file_path,
     ifs.read((char*)&N, sizeof(uint32_t));
     nodes.reserve(N);
     std::vector<float> buff(num_dimensions);
+    int id = 0;
     while (ifs.read((char*)buff.data(), num_dimensions * sizeof(float))) {
         nodes.emplace_back();
         auto& now_node = nodes.back();
+        now_node._id = id++;
         now_node._label = static_cast<float>(buff[0]);
         now_node._timestamp = static_cast<float>(buff[1]);
         #if defined(USE_AVX)

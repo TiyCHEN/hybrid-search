@@ -26,7 +26,7 @@ void solve_query_type0(
 
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
     for (uint32_t i = 0; i < nodes.size(); i++) {
-        single_hnsw->addPoint(nodes[i]._vec.data(), i);
+        single_hnsw->addPoint(nodes[i]._vec.data(), nodes[i]._id);
     }
     single_hnsw->setEf(ef_search);
 

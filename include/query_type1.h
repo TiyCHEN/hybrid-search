@@ -33,7 +33,7 @@ void solve_query_type1(
 
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
             for (uint32_t j = 0; j < index.size(); j++) {
-                label_hnsw[label]->addPoint(nodes[index[j]]._vec.data(), index[j]);
+                label_hnsw[label]->addPoint(nodes[index[j]]._vec.data(), nodes[index[j]]._id);
             }
             label_hnsw[label]->setEf(ef_search);
         }

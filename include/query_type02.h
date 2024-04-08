@@ -11,7 +11,7 @@ void solve_query_type02(
     // build index
     const int M = 16;
     const int ef_construction = 200;
-    const int ef_search = 128;
+    const int ef_search = 512 + 128 + 64;
 
     base_hnsw::L2Space space(VEC_DIMENSION);
     std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(

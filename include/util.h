@@ -2,7 +2,7 @@
 
 #include "core.h"
 
-float EuclideanDistance(const std::vector<float>& a,
+float EuclideanDistanceSquare(const std::vector<float>& a,
                         const std::vector<float>& b) {
     float sum = 0.0;
     for (size_t i = 0; i < a.size(); ++i) {

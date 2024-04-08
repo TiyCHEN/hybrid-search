@@ -4,9 +4,8 @@
 #include "hnswlib/rangehnswalg.h"
 
 void solve_query_type02(
-        const std::vector<Node>& nodes,
-        const std::vector<Query>& queries,
-        std::vector<std::vector<int32_t>>& query_indexes,
+        DataSet& data_set,
+        QuerySet& query_set,
         std::vector<std::vector<uint32_t>>& knn_results) {
     // build index
     const int M = 16;
@@ -15,26 +14,22 @@ void solve_query_type02(
 
     base_hnsw::L2Space space(VEC_DIMENSION);
     std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
-            &space, nodes.size(), M, ef_construction);
+            &space, data_set.size(), M, ef_construction);
 
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
-    for (uint32_t i = 0; i < nodes.size(); i++) {
-        single_hnsw->addPoint(nodes[i]._vec.data(), nodes[i]._id, nodes[i]._timestamp);
+    for (uint32_t i = 0; i < data_set.size(); i++) {
+        single_hnsw->addPoint(data_set._vecs[i].data(), i, data_set._timestamps[i]);
     }
     single_hnsw->setEf(ef_search);
 
 
     // solve query type0
-    auto &query_type0_indexes = query_indexes[0];
+    auto &q0_indexes = query_set._type_index[0];
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
-    for (uint32_t i = 0; i < query_type0_indexes.size(); i++)  {
-        const auto& query = queries[query_type0_indexes[i]];
-        const int32_t query_type = query._type;
-        const int32_t label = query._label;
-        const float l = query._l;
-        const float r = query._r;
+    for (uint32_t i = 0; i < q0_indexes.size(); i++)  {
+        const auto& query = query_set._queries[q0_indexes[i]];
         const auto& query_vec = query._vec;
-        auto& knn = knn_results[query_type0_indexes[i]];
+        auto& knn = knn_results[q0_indexes[i]];
 
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
         result = single_hnsw->searchKnn(query_vec.data(), 100, 0, 1);
@@ -49,16 +44,14 @@ void solve_query_type02(
     }
 
     // solve query type2
-    auto &query_type2_indexes = query_indexes[2];
+    auto &q2_indexes = query_set._type_index[2];
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
-    for (uint32_t i = 0; i < query_type2_indexes.size(); i++)  {
-        const auto& query = queries[query_type2_indexes[i]];
-        const int32_t query_type = query._type;
-        const int32_t label = query._label;
+    for (uint32_t i = 0; i < q2_indexes.size(); i++)  {
+        const auto& query = query_set._queries[q2_indexes[i]];
         const float l = query._l;
         const float r = query._r;
         const auto& query_vec = query._vec;
-        auto& knn = knn_results[query_type2_indexes[i]];
+        auto& knn = knn_results[q2_indexes[i]];
 
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
         result = single_hnsw->searchKnn(query_vec.data(), 100, l, r);

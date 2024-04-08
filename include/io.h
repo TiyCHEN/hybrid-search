@@ -27,28 +27,33 @@ void SaveKNN(const std::vector<std::vector<uint32_t>>& knns,
 /// @brief Reading binary data vectors. Raw data store as a (N x dim)
 /// @param file_path file path of binary data
 /// @param data returned 2D data vectors
-void ReadNode(const std::string& file_path,
+void ReadData(const std::string& file_path,
               const int num_dimensions,
-              std::vector<Node>& nodes) {
+              DataSet& data_set) {
     std::ifstream ifs;
     ifs.open(file_path, std::ios::binary);
     assert(ifs.is_open());
     uint32_t N;  // num of points
     ifs.read((char*)&N, sizeof(uint32_t));
-    nodes.reserve(N);
+    data_set.reserve(N);
     std::vector<float> buff(num_dimensions);
     int id = 0;
+    auto& node_label_index = data_set._label_index;
     while (ifs.read((char*)buff.data(), num_dimensions * sizeof(float))) {
-        nodes.emplace_back();
-        auto& now_node = nodes.back();
-        now_node._id = id++;
-        now_node._label = static_cast<float>(buff[0]);
-        now_node._timestamp = static_cast<float>(buff[1]);
-        now_node._vec.resize(num_dimensions - 2);
-        
+        auto label = static_cast<float>(buff[0]);
+        data_set._labels.push_back(label);
+        data_set._timestamps.push_back(static_cast<float>(buff[1]));
+        data_set._vecs.emplace_back();
+        data_set._vecs.back().reserve(num_dimensions - 2);
         for (int d = 2; d < num_dimensions; ++d) {
-            now_node._vec[d - 2] = static_cast<float>(buff[d]);
+            data_set._vecs.back().push_back(static_cast<float>(buff[d]));
         }
+        if (!node_label_index.count(label)) {
+            node_label_index[label] = {id};
+        } else {
+            node_label_index[label].push_back(id);
+        }
+        id++;
     }
     ifs.close();
 }
@@ -58,29 +63,27 @@ void ReadNode(const std::string& file_path,
 /// @param data returned 2D data vectors
 void ReadQuery(const std::string& file_path,
                const int num_dimensions,
-               std::vector<Query>& queries,
-               std::vector<std::vector<int32_t>> &type_index) {
+               QuerySet& query_set) {
     std::ifstream ifs;
     ifs.open(file_path, std::ios::binary);
     assert(ifs.is_open());
     uint32_t N;  // num of points
     ifs.read((char*)&N, sizeof(uint32_t));
-    queries.reserve(N);
+    query_set.reserve(N);
     std::vector<float> buff(num_dimensions);
-    int counter = 0;
+    int id = 0;
     while (ifs.read((char*)buff.data(), num_dimensions * sizeof(float))) {
-        queries.emplace_back();
-        auto& now_query = queries.back();
+        query_set._queries.emplace_back();
+        auto& now_query = query_set._queries.back();
         now_query._type = static_cast<float>(buff[0]);
         now_query._label = static_cast<float>(buff[1]);
         now_query._l = static_cast<float>(buff[2]);
         now_query._r = static_cast<float>(buff[3]);
         now_query._vec.resize(num_dimensions - 4);
-        
         for (int d = 4; d < num_dimensions; ++d) {
             now_query._vec[d - 4] = static_cast<float>(buff[d]);
         }
-        type_index[now_query._type].push_back(counter++);
+        query_set._type_index[now_query._type].push_back(id++);
     }
     ifs.close();
 }

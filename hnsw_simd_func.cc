@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "hnsw_simd_dist_func.h"
 #include "hnswlib/hnswlib.h"
+
 SIMDFuncType SIMDFunc = nullptr;
 // using SIMDFuncType = float (*)(const float *, const float *, int);
 #if defined(__GNUC__)

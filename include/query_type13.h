@@ -12,11 +12,10 @@
 const int HNSW_BUILD_THRASHOLD = 300;  // TODO: hyperparameter, adjust later
 
 void solve_query_type13(
-    const std::vector<Node>& nodes,
-    const std::vector<Query>& queries,
-    std::unordered_map<int32_t, std::vector<int32_t>>& data_label_index,
-    std::vector<std::vector<int32_t>>& query_indexes,
+    DataSet& data_set,
+    QuerySet& query_set,
     std::vector<std::vector<uint32_t>>& knn_results) {
+    auto data_label_index = data_set._label_index;
     // build index
     const int M = 16;
     const int ef_construction = 200;
@@ -33,39 +32,35 @@ void solve_query_type13(
             label_hnsw[label] = std::move(hnsw);
 
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
-            for (uint32_t j = 0; j < index.size(); j++) {
-                label_hnsw[label]->addPoint(nodes[index[j]]._vec.data(), nodes[index[j]]._id, nodes[index[j]]._timestamp);
+            for (uint32_t i = 0; i < index.size(); i++) {
+                label_hnsw[label]->addPoint(data_set._vecs[i].data(), i, data_set._timestamps[i]);
             }
             label_hnsw[label]->setEf(ef_search);
         }
     }
 
     // solve query1
-    auto &query_type1_indexes = query_indexes[1];
+    auto &q1_indexes = query_set._type_index[1];
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
-    for (uint32_t i = 0; i < query_type1_indexes.size(); i++)  {
-        const auto query_index = query_type1_indexes[i];
-        const auto& query = queries[query_index];
-        const int32_t query_type = query._type;
+    for (uint32_t i = 0; i < q1_indexes.size(); i++)  {
+        const auto& query = query_set._queries[q1_indexes[i]];
         const int32_t label = query._label;
-        const float l = query._l;
-        const float r = query._r;
         const auto& query_vec = query._vec;
-        auto& knn = knn_results[query_index];
+        auto& knn = knn_results[q1_indexes[i]];
 
         if (!data_label_index.count(label)) {
             throw std::invalid_argument("Can't find the match label!");
         }
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        
+
         if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
             result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
         } else {
             for (auto id : data_label_index[label]) {
                 #if #defined(USE_AVX)
-                    float dist = SIMDFunc(nodes[id]._vec.data(),query_vec.data(),VEC_DIMENSION);
+                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(), VEC_DIMENSION);
                 #else
-                    float dist = EuclideanDistance(nodes[id]._vec, query_vec);
+                    float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
                 result.push(std::make_pair(-dist, id));
             }
@@ -78,17 +73,15 @@ void solve_query_type13(
     }
 
     // solve query3
-    auto &query_type3_indexes = query_indexes[3];
+    auto &q3_indexes = query_set._type_index[3];
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
-    for (uint32_t i = 0; i < query_type3_indexes.size(); i++)  {
-        const auto query_index = query_type3_indexes[i];
-        const auto& query = queries[query_index];
-        const int32_t query_type = query._type;
+    for (uint32_t i = 0; i < q3_indexes.size(); i++)  {
+        const auto& query = query_set._queries[q3_indexes[i]];
         const int32_t label = query._label;
         const float l = query._l;
         const float r = query._r;
         const auto& query_vec = query._vec;
-        auto& knn = knn_results[query_index];
+        auto& knn = knn_results[q3_indexes[i]];
 
         if (!data_label_index.count(label)) {
             throw std::invalid_argument("Can't find the match label!");
@@ -99,13 +92,13 @@ void solve_query_type13(
             result = label_hnsw[label]->searchKnn(query_vec.data(), 100, l, r);
         } else {
             for (auto id : data_label_index[label]) {
-                if (!(l <= nodes[id]._timestamp && nodes[id]._timestamp <= r)) {
+                if (!(l <= data_set._timestamps[id] && data_set._timestamps[id] <= r)) {
                     continue;
                 }
                 #if #defined(USE_AVX)
-                    float dist = SIMDFunc(nodes[id]._vec.data(),query_vec.data(),VEC_DIMENSION);
+                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(), VEC_DIMENSION);
                 #else
-                    float dist = EuclideanDistance(nodes[id]._vec, query_vec);
+                    float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
                 result.push(std::make_pair(-dist, id));
             }

@@ -57,8 +57,8 @@ void SolveQueryType13(
             result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
         } else {
             for (auto id : data_label_index[label]) {
-                #if #defined(USE_AVX)
-                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(), VEC_DIMENSION);
+                #if defined(USE_AVX)
+                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
@@ -95,8 +95,9 @@ void SolveQueryType13(
                 if (!(l <= data_set._timestamps[id] && data_set._timestamps[id] <= r)) {
                     continue;
                 }
-                #if #defined(USE_AVX)
-                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(), VEC_DIMENSION);
+
+                #if defined(USE_AVX)
+                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif

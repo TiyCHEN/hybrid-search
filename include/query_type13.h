@@ -19,7 +19,7 @@ void SolveQueryType13(
     // build index
     const int M = 16;
     const int ef_construction = 200;
-    const int ef_search = 512 + 128 + 64;
+    const int ef_search = 512 + 128 + 32;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
     // build hnsw for large label vecs
     for (auto label_index : data_label_index) {
@@ -33,7 +33,7 @@ void SolveQueryType13(
 
 #pragma omp parallel for schedule(dynamic, NUM_THREAD)
             for (uint32_t i = 0; i < index.size(); i++) {
-                label_hnsw[label]->addPoint(data_set._vecs[i].data(), i, data_set._timestamps[i]);
+                label_hnsw[label]->addPoint(data_set._vecs[index[i]].data(), index[i], data_set._timestamps[index[i]]);
             }
             label_hnsw[label]->setEf(ef_search);
         }

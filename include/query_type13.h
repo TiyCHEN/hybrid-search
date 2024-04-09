@@ -19,7 +19,7 @@ void SolveQueryType13(
     // build index
     const int M = 16;
     const int ef_construction = 200;
-    const int ef_search = 512 + 128 + 32;
+    const int ef_search = 512 + 256;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
     // build hnsw for large label vecs
     for (auto label_index : data_label_index) {

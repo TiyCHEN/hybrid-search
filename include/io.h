@@ -41,7 +41,6 @@ void ReadData(const std::string& file_path,
     auto& node_label_index = data_set._label_index;
     while (ifs.read((char*)buff.data(), num_dimensions * sizeof(float))) {
         auto label = static_cast<float>(buff[0]);
-        data_set._labels.push_back(label);
         data_set._timestamps.push_back(static_cast<float>(buff[1]));
         data_set._vecs.emplace_back();
         data_set._vecs.back().reserve(num_dimensions - 2);
@@ -75,7 +74,7 @@ void ReadQuery(const std::string& file_path,
     while (ifs.read((char*)buff.data(), num_dimensions * sizeof(float))) {
         query_set._queries.emplace_back();
         auto& now_query = query_set._queries.back();
-        now_query._type = static_cast<float>(buff[0]);
+        int32_t type = static_cast<float>(buff[0]);
         now_query._label = static_cast<float>(buff[1]);
         now_query._l = static_cast<float>(buff[2]);
         now_query._r = static_cast<float>(buff[3]);
@@ -83,7 +82,7 @@ void ReadQuery(const std::string& file_path,
         for (int d = 4; d < num_dimensions; ++d) {
             now_query._vec[d - 4] = static_cast<float>(buff[d]);
         }
-        query_set._type_index[now_query._type].push_back(id++);
+        query_set._type_index[type].push_back(id++);
     }
     ifs.close();
 }

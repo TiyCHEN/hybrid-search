@@ -85,6 +85,12 @@ void ReadQuery(const std::string& file_path,
         query_set._type_index[type].push_back(id++);
     }
     ifs.close();
+    std::sort(query_set._type_index[1].begin(), query_set._type_index[1].end(), [&](const auto lhs, const auto rhs) {
+        return query_set._queries[lhs]._label < query_set._queries[rhs]._label;
+    });
+    std::sort(query_set._type_index[3].begin(), query_set._type_index[3].end(), [&](const auto lhs, const auto rhs) {
+        return query_set._queries[lhs]._label < query_set._queries[rhs]._label;
+    });
 }
 
 void ReadKNN(std::vector<std::vector<uint32_t>>& knns,

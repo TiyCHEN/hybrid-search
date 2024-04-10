@@ -17,6 +17,14 @@ or run 10m data
 make run-10m
 ```
 
+### Test recall for 1M dataset
+
+```
+make build
+make run-1m
+make run-recall-1m
+```
+
 ## Submit
 
 install reprozip before submit

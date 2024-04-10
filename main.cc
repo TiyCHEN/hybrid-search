@@ -49,6 +49,5 @@ int main(int argc, char** argv) {
 
     // // save the results
     SaveKNN(knn_results, knn_save_path);
-    Recall("../output.bin", "../groundtruth.bin", query_set);
     return 0;
 }

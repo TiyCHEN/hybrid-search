@@ -60,4 +60,5 @@ if(COMPILER_SUPPORTS_MAVX)
     target_compile_definitions(main PUBLIC USE_AVX)
 endif()
 
+add_subdirectory(test)
 # target_link_libraries(main src)

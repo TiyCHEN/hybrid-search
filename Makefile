@@ -21,5 +21,8 @@ run-1m:
 run-10m:
 	cd bin && ./main ../data/contest-data-release-10m.bin ../data/contest-queries-release-10m.bin
 
+run-test-recall-1m:
+	cd bin && ./test_recall ../data/contest-data-release-1m.bin ../data/contest-queries-release-1m.bin
+
 git-push:
 	git add . && git commit -m "$(MSG)" && git push origin main

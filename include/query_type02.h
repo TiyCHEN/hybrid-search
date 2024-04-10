@@ -16,7 +16,7 @@ void SolveQueryType02(
     std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
             &space, data_set.size(), M, ef_construction);
 
-#pragma omp parallel for schedule(dynamic, NUM_THREAD)
+#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < data_set.size(); i++) {
         single_hnsw->addPoint(data_set._vecs[i].data(), i, data_set._timestamps[i]);
     }
@@ -25,7 +25,7 @@ void SolveQueryType02(
 
     // solve query type0
     auto &q0_indexes = query_set._type_index[0];
-#pragma omp parallel for schedule(dynamic, NUM_THREAD)
+#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q0_indexes.size(); i++)  {
         const auto& query = query_set._queries[q0_indexes[i]];
         const auto& query_vec = query._vec;
@@ -45,7 +45,7 @@ void SolveQueryType02(
 
     // solve query type2
     auto &q2_indexes = query_set._type_index[2];
-#pragma omp parallel for schedule(dynamic, NUM_THREAD)
+#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q2_indexes.size(); i++)  {
         const auto& query = query_set._queries[q2_indexes[i]];
         const float l = query._l;

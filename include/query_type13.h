@@ -31,7 +31,7 @@ void SolveQueryType13(
                     &space, index.size(), M, ef_construction);
             label_hnsw[label] = std::move(hnsw);
 
-#pragma omp parallel for schedule(dynamic, NUM_THREAD)
+#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
             for (uint32_t i = 0; i < index.size(); i++) {
                 label_hnsw[label]->addPoint(data_set._vecs[index[i]].data(), index[i], data_set._timestamps[index[i]]);
             }
@@ -41,7 +41,7 @@ void SolveQueryType13(
 
     // solve query1
     auto &q1_indexes = query_set._type_index[1];
-#pragma omp parallel for schedule(dynamic, NUM_THREAD)
+#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q1_indexes.size(); i++)  {
         const auto& query = query_set._queries[q1_indexes[i]];
         const int32_t label = query._label;
@@ -74,7 +74,7 @@ void SolveQueryType13(
 
     // solve query3
     auto &q3_indexes = query_set._type_index[3];
-#pragma omp parallel for schedule(dynamic, NUM_THREAD)
+#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q3_indexes.size(); i++)  {
         const auto& query = query_set._queries[q3_indexes[i]];
         const int32_t label = query._label;

@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
         source_path = std::string(argv[1]);
         query_path = std::string(argv[2]);
     }
-    std::cout << "NUM_THREAD: " << NUM_THREAD << '\n';
+    std::cout << "CHUNK_SIZE: " << CHUNK_SIZE << '\n';
     //  read process
     auto s_read = std::chrono::system_clock::now();
     DataSet data_set;

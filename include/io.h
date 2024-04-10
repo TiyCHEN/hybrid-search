@@ -94,7 +94,7 @@ void ReadQuery(const std::string& file_path,
 }
 
 void ReadKNN(std::vector<std::vector<uint32_t>>& knns,
-             const std::string& path = "output.bin") {
+             const std::string& path) {
     std::cout << "Reading Oputput: " << path << std::endl;
     std::ifstream ifs;
     ifs.open(path, std::ios::binary);
@@ -103,12 +103,63 @@ void ReadKNN(std::vector<std::vector<uint32_t>>& knns,
     std::vector<uint32_t> buff(K);
     int counter = 0;
     while (ifs.read((char*)buff.data(), K * sizeof(uint32_t))) {
-        std::vector<uint32_t> knn;
+        std::vector<uint32_t> knn(K);
         for (uint32_t i = 0; i < K; ++i) {
+            // std::cout << i << std::endl;
             knn[i] = static_cast<uint32_t>(buff[i]);
         }
-        knns[counter++] = std::move(knn);
+        for (uint32_t i = 0; i < K; ++i) {
+          knns[counter].push_back(knn[i]);
+        }
+        // std::cout << knns[counter].size() << std::endl;
+        counter++;
+        
     }
     ifs.close();
     std::cout << "Finish Reading Output\n";
+}
+
+void Recall(const std::string& path,
+            const std::string& truth_path, QuerySet& query_set) {
+    const int query_num = 10000;
+    std::vector<std::vector<uint32_t>> knns(query_num);
+    std::vector<std::vector<uint32_t>> truth(query_num);          
+    ReadKNN(knns, path);
+    ReadKNN(truth, truth_path);
+    const int K = 100;
+    const uint32_t N = knns.size();
+    std::cout << knns[0].size() << std::endl;
+    std::cout << truth[0].size() << std::endl;
+    int hit = 0;
+    for (unsigned i = 0; i < N; ++i) {
+        auto &knn = knns[i];
+        auto &truth_knn = truth[i];
+        std::sort(knn.begin(), knn.end());
+        std::sort(truth_knn.begin(), truth_knn.end());
+        // std::cout << knn[0] << " " << truth_knn[0] << std::endl;
+        std::vector<uint32_t> intersection;
+        std::set_intersection(knn.begin(), knn.end(), truth_knn.begin(), truth_knn.end(),
+                              std::back_inserter(intersection));
+
+        hit += static_cast<int>(intersection.size());
+    }
+    float recall = static_cast<float>(hit) / (N * K);
+    std::cout << "Overall Recall: " << recall << std::endl;
+    
+    for (int i = 0; i < 4; i++) {
+      auto cur_query_index = query_set._type_index[i];
+      int hit = 0;
+      for (auto index : cur_query_index) {
+        auto &knn = knns[index];
+        auto &truth_knn = truth[index];
+        std::sort(knn.begin(), knn.end());
+        std::sort(truth_knn.begin(), truth_knn.end());
+        std::vector<uint32_t> intersection;
+        std::set_intersection(knn.begin(), knn.end(), truth_knn.begin(), truth_knn.end(),
+                              std::back_inserter(intersection));
+        hit += static_cast<int>(intersection.size());
+      }
+      float recall = static_cast<float>(hit) / (cur_query_index.size() * K);
+      std::cout << "Recall for Query Type " << i << ": " << recall << std::endl;    
+    }
 }

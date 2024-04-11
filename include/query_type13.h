@@ -16,9 +16,9 @@ void SolveQueryType13(
     std::vector<std::vector<uint32_t>>& knn_results) {
     auto data_label_index = data_set._label_index;
     // build index
-    const int M = 16;
-    const int ef_construction = 200;
-    const int ef_search = 512 + 256;
+    const int M = 24;
+    const int ef_construction = 140;
+    const int ef_search = 512 + 256 - 32;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
     // build hnsw for large label vecs
     for (auto label_index : data_label_index) {

@@ -7,7 +7,6 @@
 #include "util.h"
 #include "hnswlib/rangehnswalg.h"
 #include "hnswlib/hnswlib.h"
-#include "hnsw_simd_dist_func.h"
 
 const int HNSW_BUILD_THRASHOLD = 300;  // TODO: hyperparameter, adjust later
 
@@ -17,9 +16,9 @@ void SolveQueryType13(
     std::vector<std::vector<uint32_t>>& knn_results) {
     auto data_label_index = data_set._label_index;
     // build index
-    const int M = 16;
-    const int ef_construction = 200;
-    const int ef_search = 512 + 256;
+    const int M = 24;
+    const int ef_construction = 140;
+    const int ef_search = 512 + 256 - 32;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
     // build hnsw for large label vecs
     for (auto label_index : data_label_index) {
@@ -58,7 +57,7 @@ void SolveQueryType13(
         } else {
             for (auto id : data_label_index[label]) {
                 #if defined(USE_AVX)
-                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
+                    float dist = base_hnsw::HybridSimd(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
@@ -97,7 +96,7 @@ void SolveQueryType13(
                 }
 
                 #if defined(USE_AVX)
-                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
+                    float dist = base_hnsw::HybridSimd(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif

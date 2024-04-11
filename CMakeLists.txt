@@ -3,15 +3,6 @@ project(HYBRID)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# include(CheckCXXCompilerFlag)
-# CHECK_CXX_COMPILER_FLAG("-mavx" COMPILER_SUPPORTS_MAVX)
-# if(COMPILER_SUPPORTS_MAVX)
-#     message("useavx")
-#     add_compile_options(-mavx)
-#     add_definitions(-DUSE_AVX)
-# endif()
-
-
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -51,14 +42,22 @@ endif()
 # Compile flags
 # add_definitions(-lboost -ltcmalloc_minimal)
 
-add_executable(main main.cc hnsw_simd_func.cc)
+add_executable(main main.cc)
+add_executable(test_recall test/test_recall.cc)
+
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-mavx" COMPILER_SUPPORTS_MAVX)
 if(COMPILER_SUPPORTS_MAVX)
-    message("Compiler supports AVX. USE_AVX will be defined.")
-    add_compile_options(-mavx2)
-    target_compile_definitions(main PUBLIC USE_AVX)
+    message("Compiler supports AVX.")
+    add_compile_options(-mavx)
 endif()
-
-add_subdirectory(test)
-# target_link_libraries(main src)
+CHECK_CXX_COMPILER_FLAG("-mavx2" COMPILER_SUPPORTS_MAVX2)
+if(COMPILER_SUPPORTS_MAVX2)
+    message("Compiler supports AVX2.")
+    add_compile_options(-mavx2)
+endif()
+CHECK_CXX_COMPILER_FLAG("-mavx512f" COMPILER_SUPPORTS_MAVX512)
+if(COMPILER_SUPPORTS_MAVX512)
+    message("Compiler supports AVX512.")
+    add_compile_options(-mavx512f)
+endif()

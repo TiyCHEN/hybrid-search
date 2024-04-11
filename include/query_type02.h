@@ -8,10 +8,9 @@ void SolveQueryType02(
         QuerySet& query_set,
         std::vector<std::vector<uint32_t>>& knn_results) {
     // build index
-    const int M = 16;
-    const int ef_construction = 200;
-    const int ef_search = 512 + 256;
-
+    const int M = 24;
+    const int ef_construction = 140;
+    const int ef_search = 512 + 256 - 32;
     base_hnsw::L2Space space(VEC_DIMENSION);
     std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
             &space, data_set.size(), M, ef_construction);

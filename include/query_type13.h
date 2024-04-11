@@ -7,7 +7,6 @@
 #include "util.h"
 #include "hnswlib/rangehnswalg.h"
 #include "hnswlib/hnswlib.h"
-#include "hnsw_simd_dist_func.h"
 
 const int HNSW_BUILD_THRASHOLD = 300;  // TODO: hyperparameter, adjust later
 
@@ -58,7 +57,7 @@ void SolveQueryType13(
         } else {
             for (auto id : data_label_index[label]) {
                 #if defined(USE_AVX)
-                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
+                    float dist = base_hnsw::HybridSimd(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
@@ -97,7 +96,7 @@ void SolveQueryType13(
                 }
 
                 #if defined(USE_AVX)
-                    float dist = SIMDFunc(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
+                    float dist = base_hnsw::HybridSimd(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif

@@ -210,7 +210,7 @@ HybridSimd(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
     size_t dim2_ = 4;
     float *pVect1 = (float *) pVect1v;
     float *pVect2 = (float *) pVect2v;
-    return L2SqrSIMD16ExtSSE(pVect1v,pVect2v,&dim1_) + L2SqrSIMD4Ext(pVect1+dim1_,pVect2+dim1_,&dim2_);
+    return L2SqrSIMD16Ext(pVect1v,pVect2v,&dim1_) + L2SqrSIMD4Ext(pVect1+dim1_,pVect2+dim1_,&dim2_);
 }
 
 #endif

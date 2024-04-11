@@ -1,11 +1,9 @@
 #include "io.h"
 #include "util.h"
-#include "hnsw_simd_dist_func.h"
 #include "query_type02.h"
 #include "query_type13.h"
 
 int main(int argc, char** argv) {
-    SetSIMDFunc();
     std::string source_path = "../data/dummy-data.bin";
     std::string query_path = "../data/dummy-queries.bin";
     std::string knn_save_path = "../output.bin";

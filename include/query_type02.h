@@ -14,17 +14,17 @@ void SolveQueryType02(
     base_hnsw::L2Space space(VEC_DIMENSION);
     std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
             &space, data_set.size(), M, ef_construction);
-    auto build_02 = std::chrono::system_clock::now();
+    auto s_index02 = std::chrono::system_clock::now();
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < data_set.size(); i++) {
         single_hnsw->addPoint(data_set._vecs[i].data(), i, data_set._timestamps[i]);
     }
     single_hnsw->setEf(ef_search);
-    auto end_02 = std::chrono::system_clock::now();
-    std::cout << "build index 02 " << time_cost(build_02, end_02) << " (ms)\n";
+    auto e_index02 = std::chrono::system_clock::now();
+    std::cout << "build index 02 cost: " << time_cost(s_index02, e_index02) << " (ms)\n";
 
     // solve query type0
-    auto s01 = std::chrono::system_clock::now();
+    auto s_q0 = std::chrono::system_clock::now();
     auto &q0_indexes = query_set._type_index[0];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q0_indexes.size(); i++)  {
@@ -42,10 +42,11 @@ void SolveQueryType02(
             result.pop();
         }
     }
-    auto e01 = std::chrono::system_clock::now();
-    std::cout << "search query 0 cost " << time_cost(s01, e01) << " (ms)\n";
+    auto e_q0 = std::chrono::system_clock::now();
+    std::cout << "search query 0 cost: " << time_cost(s_q0, e_q0) << " (ms)\n";
+
     // solve query type2
-    auto s02 = std::chrono::system_clock::now();
+    auto s_q2 = std::chrono::system_clock::now();
     auto &q2_indexes = query_set._type_index[2];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q2_indexes.size(); i++)  {
@@ -67,6 +68,6 @@ void SolveQueryType02(
             result.pop();
         }
     }
-    auto e02 = std::chrono::system_clock::now();
-    std::cout << "search query 2 cost " << time_cost(s02, e02) << " (ms)\n";
+    auto e_q2 = std::chrono::system_clock::now();
+    std::cout << "search query 2 cost: " << time_cost(s_q2, e_q2) << " (ms)\n";
 }

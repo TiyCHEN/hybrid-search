@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
         source_path = std::string(argv[1]);
         query_path = std::string(argv[2]);
     }
-    std::cout << "CHUNK_SIZE: " << CHUNK_SIZE << '\n';
+
     //  read process
     auto s_read = std::chrono::system_clock::now();
     DataSet data_set;
@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     QuerySet query_set;
     ReadQuery(query_path, QUERY_DIMENTION, query_set);
     auto e_read = std::chrono::system_clock::now();
-    std::cout << "read and pre-process cost " << time_cost(s_read, e_read) << " (ms)\n";
+    std::cout << "read and pre-process cost: " << time_cost(s_read, e_read) << " (ms)\n";
 
     // Print Data Info
     std::cout << "# data points:  " << data_set.size() << "\n";
@@ -34,16 +34,11 @@ int main(int argc, char** argv) {
     }
 
     // solve query type 0 & 2
-    auto s02 = std::chrono::system_clock::now();
     SolveQueryType02(data_set, query_set, knn_results);
-    auto e02 = std::chrono::system_clock::now();
-    std::cout << "solve query02 cost " << time_cost(s02, e02) << " (ms)\n";
 
     // solve query type 1 & 3
-    auto s13 = std::chrono::system_clock::now();
     SolveQueryType13(data_set, query_set, knn_results);
-    auto e13 = std::chrono::system_clock::now();
-    std::cout << "solve query13 cost " << time_cost(s13, e13) << " (ms)\n";
+
     // // save the results
     SaveKNN(knn_results, knn_save_path);
     return 0;

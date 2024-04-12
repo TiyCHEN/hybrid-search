@@ -21,7 +21,7 @@ void SolveQueryType13(
     const int ef_search = 128;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
     // build hnsw for large label vecs
-    auto build_13 = std::chrono::system_clock::now();
+    auto s_index13 = std::chrono::system_clock::now();
     for (auto label_index : data_label_index) {
         int label = label_index.first;
         auto &index = label_index.second;
@@ -38,10 +38,11 @@ void SolveQueryType13(
             label_hnsw[label]->setEf(ef_search);
         }
     }
-    auto end_13 = std::chrono::system_clock::now();
-    std::cout << "build ihdex 13 " << time_cost(build_13, end_13) << " (ms)\n";
+    auto e_index13 = std::chrono::system_clock::now();
+    std::cout << "build index 13 cost: " << time_cost(s_index13, e_index13) << " (ms)\n";
+
     // solve query1
-    auto s01 = std::chrono::system_clock::now();
+    auto s_q1 = std::chrono::system_clock::now();
     auto &q1_indexes = query_set._type_index[1];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q1_indexes.size(); i++)  {
@@ -80,10 +81,11 @@ void SolveQueryType13(
             result.pop();
         }
     }
-    auto e01 = std::chrono::system_clock::now();
-    std::cout << "search query 1 cost " << time_cost(s01, e01) << " (ms)\n";
+    auto e_q1 = std::chrono::system_clock::now();
+    std::cout << "search query 1 cost: " << time_cost(s_q1, e_q1) << " (ms)\n";
+
     // solve query3
-    auto s02 = std::chrono::system_clock::now();
+    auto s_q3 = std::chrono::system_clock::now();
     auto &q3_indexes = query_set._type_index[3];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q3_indexes.size(); i++)  {
@@ -128,6 +130,6 @@ void SolveQueryType13(
             result.pop();
         }
     }
-    auto e02 = std::chrono::system_clock::now();
-    std::cout << "search query 3 cost " << time_cost(s02, e02) << " (ms)\n";
+    auto e_q3 = std::chrono::system_clock::now();
+    std::cout << "search query 3 cost: " << time_cost(s_q3, e_q3) << " (ms)\n";
 }

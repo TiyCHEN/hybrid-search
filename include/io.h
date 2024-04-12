@@ -6,6 +6,8 @@
 #pragma once
 #include "core.h"
 #include "data_format.h"
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 /// @brief Save knng in binary format (uint32_t) with name "output.bin"
 /// @param knn a (N * 100) shape 2-D vector
@@ -13,15 +15,28 @@
 /// "output.bin" for evaluation
 void SaveKNN(const std::vector<std::vector<uint32_t>>& knns,
              const std::string& path = "output.bin") {
-    std::ofstream ofs(path, std::ios::out | std::ios::binary);
+    int flag = -1;
+    int ofs = open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     const int K = 100;
     const uint32_t N = knns.size();
     assert(knns.front().size() == K);
+    size_t file_size = N * K * sizeof(uint32_t);
+    flag = ftruncate(ofs, file_size);
+    assert(flag != -1);
+
+    uint32_t* mapped_data = (uint32_t*)mmap(NULL, file_size, PROT_READ | PROT_WRITE, MAP_SHARED, ofs, 0);
+    assert(mapped_data != MAP_FAILED);
+
+#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (unsigned i = 0; i < N; ++i) {
         auto const& knn = knns[i];
-        ofs.write(reinterpret_cast<char const*>(&knn[0]), K * sizeof(uint32_t));
+        uint32_t* dest = mapped_data + i * K;
+        memcpy(dest, knn.data(), K * sizeof(uint32_t));
     }
-    ofs.close();
+
+    flag = munmap(mapped_data, file_size);
+    assert(flag != -1);
+    close(ofs);
 }
 
 /// @brief Reading binary data vectors. Raw data store as a (N x dim)
@@ -30,31 +45,47 @@ void SaveKNN(const std::vector<std::vector<uint32_t>>& knns,
 void ReadData(const std::string& file_path,
               const int num_dimensions,
               DataSet& data_set) {
-    std::ifstream ifs;
-    ifs.open(file_path, std::ios::binary);
-    assert(ifs.is_open());
-    uint32_t N;  // num of points
-    ifs.read((char*)&N, sizeof(uint32_t));
-    data_set.reserve(N);
-    std::vector<float> buff(num_dimensions);
-    int id = 0;
+    int flag = -1;
+    int ifs = open(file_path.c_str(), O_RDONLY);
+    assert(ifs != -1);
+
+    struct stat file_stat;
+    flag = fstat(ifs, &file_stat);
+    assert(flag != -1);
+    size_t file_size = file_stat.st_size;
+
+    void* mapped_data = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, ifs, 0);
+    assert(mapped_data != MAP_FAILED);
+    
+    const void* base_data = mapped_data;
+    uint32_t N = *reinterpret_cast<const uint32_t*>(base_data);
+    base_data = static_cast<const char*>(base_data) + sizeof(uint32_t);
+    const float* data = reinterpret_cast<const float*>(base_data);
+    data_set.resize(N);
     auto& node_label_index = data_set._label_index;
-    while (ifs.read((char*)buff.data(), num_dimensions * sizeof(float))) {
-        auto label = static_cast<float>(buff[0]);
-        data_set._timestamps.push_back(static_cast<float>(buff[1]));
-        data_set._vecs.emplace_back();
-        data_set._vecs.back().reserve(num_dimensions - 2);
-        for (int d = 2; d < num_dimensions; ++d) {
-            data_set._vecs.back().push_back(static_cast<float>(buff[d]));
-        }
+
+    std::mutex label_mutex;
+    auto add_label = [&](int32_t label, int32_t id) {
+        std::lock_guard<std::mutex> lock(label_mutex);
         if (!node_label_index.count(label)) {
             node_label_index[label] = {id};
         } else {
-            node_label_index[label].push_back(id);
+            node_label_index[label].emplace_back(id);
         }
-        id++;
+    };
+
+#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+    for (int32_t i = 0; i < N; ++i) {
+        float label = data[i * num_dimensions + 0];
+        data_set._timestamps[i] = data[i * num_dimensions + 1];
+        data_set._vecs[i].resize(num_dimensions - 2);
+        memcpy(data_set._vecs[i].data(), data + i * num_dimensions + 2, (num_dimensions - 2) * sizeof(float));
+        add_label(label, i);
     }
-    ifs.close();
+
+    flag = munmap(mapped_data, file_size);
+    assert(flag != -1);
+    close(ifs);
 }
 
 /// @brief Reading binary data vectors. Raw data store as a (N x dim)
@@ -63,28 +94,46 @@ void ReadData(const std::string& file_path,
 void ReadQuery(const std::string& file_path,
                const int num_dimensions,
                QuerySet& query_set) {
-    std::ifstream ifs;
-    ifs.open(file_path, std::ios::binary);
-    assert(ifs.is_open());
-    uint32_t N;  // num of points
-    ifs.read((char*)&N, sizeof(uint32_t));
-    query_set.reserve(N);
-    std::vector<float> buff(num_dimensions);
-    int id = 0;
-    while (ifs.read((char*)buff.data(), num_dimensions * sizeof(float))) {
-        query_set._queries.emplace_back();
-        auto& now_query = query_set._queries.back();
-        int32_t type = static_cast<float>(buff[0]);
-        now_query._label = static_cast<float>(buff[1]);
-        now_query._l = static_cast<float>(buff[2]);
-        now_query._r = static_cast<float>(buff[3]);
-        now_query._vec.resize(num_dimensions - 4);
-        for (int d = 4; d < num_dimensions; ++d) {
-            now_query._vec[d - 4] = static_cast<float>(buff[d]);
-        }
-        query_set._type_index[type].push_back(id++);
+    int flag = -1;
+    int ifs = open(file_path.c_str(), O_RDONLY);
+    assert(ifs != -1);
+
+    struct stat file_stat;
+    flag = fstat(ifs, &file_stat);
+    assert(flag != -1);
+    size_t file_size = file_stat.st_size;
+
+    void* mapped_data = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, ifs, 0);
+    assert(mapped_data != MAP_FAILED);
+    
+    const void* base_data = mapped_data;
+    uint32_t N = *reinterpret_cast<const uint32_t*>(base_data);
+    base_data = static_cast<const char*>(base_data) + sizeof(uint32_t);
+    const float* data = reinterpret_cast<const float*>(base_data);
+    query_set.resize(N);
+    auto& query_type_index = query_set._type_index;
+
+    std::mutex type_mutex;
+    auto add_type = [&](int32_t type, int32_t id) {
+        std::lock_guard<std::mutex> lock(type_mutex);
+        query_type_index[type].emplace_back(id);
+    };
+
+#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+    for (int32_t i = 0; i < N; ++i) {
+        int32_t type = data[i * num_dimensions + 0];
+        query_set._queries[i]._label = data[i * num_dimensions + 1];
+        query_set._queries[i]._l = data[i * num_dimensions + 2];
+        query_set._queries[i]._r = data[i * num_dimensions + 3];
+        query_set._queries[i]._vec.resize(num_dimensions - 4);
+        memcpy(query_set._queries[i]._vec.data(), data + i * num_dimensions + 4, (num_dimensions - 4) * sizeof(float));
+        add_type(type, i);
     }
-    ifs.close();
+
+    flag = munmap(mapped_data, file_size);
+    assert(flag != -1);
+    close(ifs);
+
     std::sort(query_set._type_index[1].begin(), query_set._type_index[1].end(), [&](const auto lhs, const auto rhs) {
         return query_set._queries[lhs]._label < query_set._queries[rhs]._label;
     });
@@ -95,24 +144,28 @@ void ReadQuery(const std::string& file_path,
 
 void ReadKNN(std::vector<std::vector<uint32_t>>& knns,
              const std::string& path) {
-    std::cout << "Reading Oputput: " << path << std::endl;
-    std::ifstream ifs;
-    ifs.open(path, std::ios::binary);
-    assert(ifs.is_open());
-    const int K = 100;
-    std::vector<uint32_t> buff(K);
-    int counter = 0;
-    while (ifs.read((char*)buff.data(), K * sizeof(uint32_t))) {
-        std::vector<uint32_t> knn(K);
-        for (uint32_t i = 0; i < K; ++i) {
-            knn[i] = static_cast<uint32_t>(buff[i]);
-        }
-        for (uint32_t i = 0; i < K; ++i) {
-          knns[counter].push_back(knn[i]);
-        }
-        counter++;
+    int flag = -1;
+    int ifs = open(path.c_str(), O_RDONLY);
+    assert(ifs != -1);
 
+    struct stat file_stat;
+    flag = fstat(ifs, &file_stat);
+    assert(flag != -1);
+    size_t file_size = file_stat.st_size;
+
+    void* mapped_data = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, ifs, 0);
+    assert(mapped_data != MAP_FAILED);
+
+    const int K = 100;
+    const int N = file_size / (K * sizeof(uint32_t));
+    knns.resize(N);
+    const uint32_t* data = reinterpret_cast<const uint32_t*>(mapped_data);
+    for (int i = 0; i < N; ++i) {
+        knns[i].resize(K);
+        memcpy(knns[i].data(), data + i * K, K * sizeof(uint32_t));
     }
-    ifs.close();
-    std::cout << "Finish Reading Output\n";
+
+    flag = munmap(mapped_data, file_size);
+    assert(flag != -1);
+    close(ifs);
 }

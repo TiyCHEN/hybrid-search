@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core.h"
+#include <mutex>
 
 struct DataSet {
     // std::vector<int32_t> _labels;
@@ -13,6 +14,11 @@ struct DataSet {
         // _labels.reserve(size);
         _timestamps.reserve(size);
         _vecs.reserve(size);
+    }
+
+    void resize(size_t size) {
+        _timestamps.resize(size);
+        _vecs.resize(size);
     }
 
     size_t size() {
@@ -35,6 +41,10 @@ struct QuerySet {
     // functions
     void reserve(size_t size) {
         _queries.reserve(size);
+    }
+
+    void resize(size_t size) {
+        _queries.resize(size);
     }
 
     size_t size() {

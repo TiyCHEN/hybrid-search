@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <random>
 #include <set>
 #include <sstream>
@@ -19,6 +20,8 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 const int K = 100;  // top-k knns
 const uint32_t VEC_DIMENSION = 100;

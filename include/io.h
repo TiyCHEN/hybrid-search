@@ -6,8 +6,6 @@
 #pragma once
 #include "core.h"
 #include "data_format.h"
-#include <sys/mman.h>
-#include <sys/stat.h>
 
 /// @brief Save knng in binary format (uint32_t) with name "output.bin"
 /// @param knn a (N * 100) shape 2-D vector
@@ -56,12 +54,15 @@ void ReadData(const std::string& file_path,
 
     void* mapped_data = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, ifs, 0);
     assert(mapped_data != MAP_FAILED);
-    
+
     const void* base_data = mapped_data;
     uint32_t N = *reinterpret_cast<const uint32_t*>(base_data);
     base_data = static_cast<const char*>(base_data) + sizeof(uint32_t);
     const float* data = reinterpret_cast<const float*>(base_data);
     data_set.resize(N);
+    for (auto& vec : data_set._vecs) {
+        vec.resize(num_dimensions - 2);
+    }
     auto& node_label_index = data_set._label_index;
 
     std::mutex label_mutex;
@@ -78,7 +79,6 @@ void ReadData(const std::string& file_path,
     for (int32_t i = 0; i < N; ++i) {
         float label = data[i * num_dimensions + 0];
         data_set._timestamps[i] = data[i * num_dimensions + 1];
-        data_set._vecs[i].resize(num_dimensions - 2);
         memcpy(data_set._vecs[i].data(), data + i * num_dimensions + 2, (num_dimensions - 2) * sizeof(float));
         add_label(label, i);
     }
@@ -105,12 +105,15 @@ void ReadQuery(const std::string& file_path,
 
     void* mapped_data = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, ifs, 0);
     assert(mapped_data != MAP_FAILED);
-    
+
     const void* base_data = mapped_data;
     uint32_t N = *reinterpret_cast<const uint32_t*>(base_data);
     base_data = static_cast<const char*>(base_data) + sizeof(uint32_t);
     const float* data = reinterpret_cast<const float*>(base_data);
     query_set.resize(N);
+    for (auto& query : query_set._queries) {
+        query._vec.resize(num_dimensions - 4);
+    }
     auto& query_type_index = query_set._type_index;
 
     std::mutex type_mutex;
@@ -125,7 +128,6 @@ void ReadQuery(const std::string& file_path,
         query_set._queries[i]._label = data[i * num_dimensions + 1];
         query_set._queries[i]._l = data[i * num_dimensions + 2];
         query_set._queries[i]._r = data[i * num_dimensions + 3];
-        query_set._queries[i]._vec.resize(num_dimensions - 4);
         memcpy(query_set._queries[i]._vec.data(), data + i * num_dimensions + 4, (num_dimensions - 4) * sizeof(float));
         add_type(type, i);
     }

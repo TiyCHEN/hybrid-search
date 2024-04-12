@@ -18,9 +18,10 @@ void SolveQueryType13(
     // build index
     const int M = 24;
     const int ef_construction = 140;
-    const int ef_search = 512 + 256 - 32;
+    const int ef_search = 128;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
     // build hnsw for large label vecs
+    auto build_13 = std::chrono::system_clock::now();
     for (auto label_index : data_label_index) {
         int label = label_index.first;
         auto &index = label_index.second;
@@ -37,8 +38,10 @@ void SolveQueryType13(
             label_hnsw[label]->setEf(ef_search);
         }
     }
-
+    auto end_13 = std::chrono::system_clock::now();
+    std::cout << "build ihdex 13 " << time_cost(build_13, end_13) << " (ms)\n";
     // solve query1
+    auto s01 = std::chrono::system_clock::now();
     auto &q1_indexes = query_set._type_index[1];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q1_indexes.size(); i++)  {
@@ -48,7 +51,10 @@ void SolveQueryType13(
         auto& knn = knn_results[q1_indexes[i]];
 
         if (!data_label_index.count(label)) {
-            throw std::invalid_argument("Can't find the match label!");
+            while (knn.size() < K) {
+                knn.push_back(0);
+            }
+           continue;
         }
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
 
@@ -66,12 +72,18 @@ void SolveQueryType13(
         }
 
         while (knn.size() < K) {
+            if (result.empty()) {
+                knn.push_back(0);
+                continue;
+            }
             knn.push_back(result.top().second);
             result.pop();
         }
     }
-
+    auto e01 = std::chrono::system_clock::now();
+    std::cout << "search query 1 cost " << time_cost(s01, e01) << " (ms)\n";
     // solve query3
+    auto s02 = std::chrono::system_clock::now();
     auto &q3_indexes = query_set._type_index[3];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q3_indexes.size(); i++)  {
@@ -83,7 +95,10 @@ void SolveQueryType13(
         auto& knn = knn_results[q3_indexes[i]];
 
         if (!data_label_index.count(label)) {
-            throw std::invalid_argument("Can't find the match label!");
+            while (knn.size() < K) {
+                knn.push_back(0);
+            }
+          continue;
         }
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
 
@@ -105,8 +120,14 @@ void SolveQueryType13(
         }
 
         while (knn.size() < K) {
+            if (result.empty()) {
+                knn.push_back(0);
+                continue;
+            }
             knn.push_back(result.top().second);
             result.pop();
         }
     }
+    auto e02 = std::chrono::system_clock::now();
+    std::cout << "search query 3 cost " << time_cost(s02, e02) << " (ms)\n";
 }

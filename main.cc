@@ -44,7 +44,6 @@ int main(int argc, char** argv) {
     SolveQueryType13(data_set, query_set, knn_results);
     auto e13 = std::chrono::system_clock::now();
     std::cout << "solve query13 cost " << time_cost(s13, e13) << " (ms)\n";
-
     // // save the results
     SaveKNN(knn_results, knn_save_path);
     return 0;

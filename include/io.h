@@ -75,7 +75,6 @@ void ReadData(const std::string& file_path,
         }
     };
 
-#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (int32_t i = 0; i < N; ++i) {
         float label = data[i * num_dimensions + 0];
         data_set._timestamps[i] = data[i * num_dimensions + 1];
@@ -122,7 +121,6 @@ void ReadQuery(const std::string& file_path,
         query_type_index[type].emplace_back(id);
     };
 
-#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (int32_t i = 0; i < N; ++i) {
         int32_t type = data[i * num_dimensions + 0];
         query_set._queries[i]._label = data[i * num_dimensions + 1];

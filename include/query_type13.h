@@ -18,7 +18,6 @@ void SolveQueryType13(
     // build index
     const int M = 24;
     const int ef_construction = 140;
-    const int ef_search = 128;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
     // build hnsw for large label vecs
     auto s_index13 = std::chrono::system_clock::now();
@@ -35,13 +34,16 @@ void SolveQueryType13(
             for (uint32_t i = 0; i < index.size(); i++) {
                 label_hnsw[label]->addPoint(data_set._vecs[index[i]].data(), index[i], data_set._timestamps[index[i]]);
             }
-            label_hnsw[label]->setEf(ef_search);
         }
     }
     auto e_index13 = std::chrono::system_clock::now();
     std::cout << "build index 13 cost: " << time_cost(s_index13, e_index13) << " (ms)\n";
 
     // solve query1 (Filter-ANN)
+    const int ef_search_q1 = 256 + 64;
+    for (auto &[_, hnsw] : label_hnsw) {
+        hnsw->setEf(ef_search_q1);
+    }
     auto s_q1 = std::chrono::system_clock::now();
     auto &q1_indexes = query_set._type_index[1];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
@@ -85,6 +87,10 @@ void SolveQueryType13(
     std::cout << "search query 1 cost: " << time_cost(s_q1, e_q1) << " (ms)\n";
 
     // solve query3 (Filter-Range-ANN)
+    const int ef_search_q3 = 128;
+    for (auto &[_, hnsw] : label_hnsw) {
+        hnsw->setEf(ef_search_q3);
+    }
     auto s_q3 = std::chrono::system_clock::now();
     auto &q3_indexes = query_set._type_index[3];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)

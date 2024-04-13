@@ -23,7 +23,7 @@ void SolveQueryType02(
     auto e_index02 = std::chrono::system_clock::now();
     std::cout << "build index 02 cost: " << time_cost(s_index02, e_index02) << " (ms)\n";
 
-    // solve query type0
+    // solve query type0 (ANN)
     auto s_q0 = std::chrono::system_clock::now();
     auto &q0_indexes = query_set._type_index[0];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
@@ -45,9 +45,14 @@ void SolveQueryType02(
     auto e_q0 = std::chrono::system_clock::now();
     std::cout << "search query 0 cost: " << time_cost(s_q0, e_q0) << " (ms)\n";
 
-    // solve query type2
+    // solve query type2 (Range-ANN)
     auto s_q2 = std::chrono::system_clock::now();
     auto &q2_indexes = query_set._type_index[2];
+    std::vector<int32_t> data_time_index(data_set.size());
+    std::iota(data_time_index.begin(), data_time_index.end(), 0);
+    std::sort(data_time_index.begin(), data_time_index.end(), [&](const auto lhs, const auto rhs) {
+        return data_set._timestamps[lhs] < data_set._timestamps[rhs];
+    });
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q2_indexes.size(); i++)  {
         const auto& query = query_set._queries[q2_indexes[i]];
@@ -56,8 +61,28 @@ void SolveQueryType02(
         const auto& query_vec = query._vec;
         auto& knn = knn_results[q2_indexes[i]];
 
+        int st_pos = std::lower_bound(data_time_index.begin(), data_time_index.end(), l, [&](const auto x, const float ti) {
+            return data_set._timestamps[x] < ti;
+        }) - data_time_index.begin();
+        int en_pos = std::lower_bound(data_time_index.begin(), data_time_index.end(), r, [&](const auto x, const float ti) {
+            return data_set._timestamps[x] <= ti;
+        }) - data_time_index.begin();
+        int range_cnt = en_pos - st_pos;
+
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        result = single_hnsw->searchKnn(query_vec.data(), 100, l, r);
+        if (range_cnt <= RANGE_BF_THRASHOLD) {
+            for (int j = st_pos; j < en_pos; ++j) {
+                auto id = data_time_index[j];
+                #if defined(USE_AVX)
+                    float dist = base_hnsw::HybridSimd(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
+                #else
+                    float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
+                #endif
+                result.push(std::make_pair(-dist, id));
+            }
+        } else {
+            result = single_hnsw->searchKnn(query_vec.data(), 100, l, r);
+        }
 
         while (knn.size() < K) {
             if (result.empty()) {

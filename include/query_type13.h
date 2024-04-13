@@ -41,7 +41,7 @@ void SolveQueryType13(
     auto e_index13 = std::chrono::system_clock::now();
     std::cout << "build index 13 cost: " << time_cost(s_index13, e_index13) << " (ms)\n";
 
-    // solve query1
+    // solve query1 (Filter-ANN)
     auto s_q1 = std::chrono::system_clock::now();
     auto &q1_indexes = query_set._type_index[1];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
@@ -84,7 +84,7 @@ void SolveQueryType13(
     auto e_q1 = std::chrono::system_clock::now();
     std::cout << "search query 1 cost: " << time_cost(s_q1, e_q1) << " (ms)\n";
 
-    // solve query3
+    // solve query3 (Filter-Range-ANN)
     auto s_q3 = std::chrono::system_clock::now();
     auto &q3_indexes = query_set._type_index[3];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)

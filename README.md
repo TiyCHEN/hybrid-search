@@ -33,7 +33,7 @@ pip install reprozip
 ```
 pack code
 ```
-make clean
+make clean && rm -rf .reprozip-trace && rm -f submission.rpz
 reprozip trace bash ./run.sh
 reprozip pack submission.rpz
 ```

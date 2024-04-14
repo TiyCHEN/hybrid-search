@@ -1,6 +1,10 @@
 #pragma once
 
 #include "core.h"
+#include "data_format.h"
+#include "io.h"
+
+void ReadKNN(std::vector<std::vector<uint32_t>>& knns, const std::string& path);
 
 float EuclideanDistanceSquare(const std::vector<float>& a,
                         const std::vector<float>& b) {

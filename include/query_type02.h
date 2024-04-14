@@ -15,36 +15,8 @@ void SolveQueryType02(
     base_hnsw::L2Space space(VEC_DIMENSION);
     std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
             &space, data_set.size(), M, ef_construction);
-    std::unordered_map<std::size_t, std::list<uint32_t>> vec2id;
-
-    auto getId = [&data_set, &vec2id](const std::vector<float>& query_vec) {
-        auto hash = HashVector(query_vec);
-        assert(vec2id.count(hash) > 0);
-        auto& ids = vec2id[hash];
-        if (ids.size() == 1) {
-            return ids.front();
-        } else {
-            // solve hash conflict
-            for (uint32_t& id : ids) {
-                auto &origin_vec = data_set._vecs[id];
-                if (origin_vec == query_vec) {
-                    return id;
-                }
-            }
-            std::runtime_error("can not find ep id, use hash");
-        }
-    };
 
     auto s_index02 = std::chrono::system_clock::now();
-    for (uint32_t i = 0; i < data_set.size(); i++) {
-        auto hash = HashVector(data_set._vecs[i]);
-        if (vec2id.find(hash) == vec2id.end()) {
-            vec2id[hash] = {i};
-        } else {
-            vec2id[hash].push_back(i);
-        }
-    }
-
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < data_set.size(); i++) {
         single_hnsw->addPoint(data_set._vecs[i].data(), i, data_set._timestamps[i]);
@@ -53,7 +25,7 @@ void SolveQueryType02(
     std::cout << "build index 02 cost: " << time_cost(s_index02, e_index02) << " (ms)\n";
 
     // solve query type0 (ANN)
-    const int ef_search_q0 = 256 + 128 + 64;
+    const int ef_search_q0 = 512;
     single_hnsw->setEf(ef_search_q0);
     auto s_q0 = std::chrono::system_clock::now();
     auto &q0_indexes = query_set._type_index[0];
@@ -64,7 +36,7 @@ void SolveQueryType02(
         auto& knn = knn_results[q0_indexes[i]];
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
 
-        result = single_hnsw->searchKnnUseLabel(query_vec.data(), 100, 0, 1, getId(query_vec));
+        result = single_hnsw->searchKnnUseLabel(query_vec.data(), 100, 0, 1, data_set.getId(query_vec));
         while (knn.size() < K) {
             if (result.empty()) {
                 knn.push_back(0);
@@ -115,7 +87,7 @@ void SolveQueryType02(
                 result.push(std::make_pair(-dist, id));
             }
         } else {
-            result = single_hnsw->searchKnnUseLabel(query_vec.data(), 100, l, r, getId(query_vec));
+            result = single_hnsw->searchKnnUseLabel(query_vec.data(), 100, l, r, data_set.getId(query_vec));
         }
 
         while (knn.size() < K) {

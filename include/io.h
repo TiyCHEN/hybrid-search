@@ -5,7 +5,8 @@
 
 #pragma once
 #include "core.h"
-#include "data_format.h"
+#include "util.h"
+
 
 /// @brief Save knng in binary format (uint32_t) with name "output.bin"
 /// @param knn a (N * 100) shape 2-D vector
@@ -70,6 +71,24 @@ void ReadData(const std::string& file_path,
             node_label_index[label] = {i};
         } else {
             node_label_index[label].emplace_back(i);
+        }
+
+        // hash vec
+        auto hash = HashVector(data_set._vecs[i]);
+        if (!data_set._vec2id.count(hash)) {
+            data_set._vec2id[hash] = {i};
+        } else {
+            data_set._vec2id[hash].emplace_back(i);
+        }
+
+        if (!data_set._vec2ids.count(label)) {
+            // init map
+            data_set._vec2ids[label] = {};
+        }
+        if (!data_set._vec2ids[label].count(hash)) {
+            data_set._vec2ids[label][hash] = {i};
+        } else {
+            data_set._vec2ids[label][hash].emplace_back(i);
         }
     }
 

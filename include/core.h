@@ -20,6 +20,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <list>
 #include <sys/mman.h>
 #include <sys/stat.h>
 

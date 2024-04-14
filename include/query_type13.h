@@ -19,18 +19,44 @@ void SolveQueryType13(
     const int M = 24;
     const int ef_construction = 140;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
-    std::unordered_map<int, std::map<std::vector<float>, uint32_t>> vec2ids;
+    std::unordered_map<int, std::unordered_map<std::size_t, std::list<int>>> vec2ids;
+
+    auto getIdWithLabel = [&data_set, &vec2ids](const std::vector<float>& query_vec, const int32_t label) {
+        auto &vec2id = vec2ids[label];
+
+        auto hash = HashVector(query_vec);
+        assert(vec2id.count(hash) > 0);
+        auto& ids = vec2id[hash];
+        if (ids.size() == 1) {
+            return ids.front();
+        } else {
+            // solve hash conflict
+            for (int& id : ids) {
+                auto &origin_vec = data_set._vecs[id];
+                if (origin_vec == query_vec) {
+                    return id;
+                }
+            }
+            std::runtime_error("can not find ep id, use hash");
+        }
+    };
+
     // build hnsw for large label vecs
     auto s_index13 = std::chrono::system_clock::now();
     for (auto label_index : data_label_index) {
         int label = label_index.first;
         auto &index = label_index.second;
         if (index.size() >= HNSW_BUILD_THRASHOLD) {
-//            std::map<std::vector<float>, uint32_t> vec2id;
-//            for (uint32_t i = 0; i < index.size(); i++) {
-//                vec2id[data_set._vecs[index[i]]] = index[i];
-//            }
-//            vec2ids[label] = std::move(vec2id);
+            std::unordered_map<std::size_t, std::list<int>> vec2id;
+            for (uint32_t i = 0; i < index.size(); i++) {
+                auto hash = HashVector(data_set._vecs[index[i]]);
+                if (vec2id.find(hash) != vec2id.end()) {
+                    vec2id[hash] = {index[i]};
+                } else {
+                    vec2id[hash].push_back(index[i]);
+                }
+            }
+            vec2ids[label] = std::move(vec2id);
 
             base_hnsw::L2Space space(VEC_DIMENSION);
             auto hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
@@ -69,9 +95,8 @@ void SolveQueryType13(
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
 
         if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
-//            assert(vec2ids[label].count(query_vec) > 0);
-            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
-//            result = label_hnsw[label]->searchKnnUseLabel(query_vec.data(), 100, 0, 1, vec2ids[label][query_vec]);
+//            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
+            result = label_hnsw[label]->searchKnnUseLabel(query_vec.data(), 100, 0, 1, getIdWithLabel(query_vec, label));
         } else {
             for (auto id : data_label_index[label]) {
                 #if defined(USE_AVX)
@@ -120,9 +145,8 @@ void SolveQueryType13(
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
 
         if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
-//            assert(vec2ids[label].count(query_vec) > 0);
-            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
-//            result = label_hnsw[label]->searchKnnUseLabel(query_vec.data(), 100, 0, 1, vec2ids[label][query_vec]);
+//            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, l, r);
+            result = label_hnsw[label]->searchKnnUseLabel(query_vec.data(), 100, l, r, getIdWithLabel(query_vec, label));
         } else {
             for (auto id : data_label_index[label]) {
                 if (!(l <= data_set._timestamps[id] && data_set._timestamps[id] <= r)) {

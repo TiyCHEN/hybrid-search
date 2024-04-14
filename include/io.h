@@ -7,9 +7,6 @@
 #include "core.h"
 #include "data_format.h"
 
-/// @brief Save knng in binary format (uint32_t) with name "output.bin"
-/// @param knn a (N * 100) shape 2-D vector
-/// @param path target save path, the output knng should be named as
 /// "output.bin" for evaluation
 void SaveKNN(const std::vector<std::vector<uint32_t>>& knns,
              const std::string& path = "output.bin") {
@@ -36,9 +33,6 @@ void SaveKNN(const std::vector<std::vector<uint32_t>>& knns,
     close(ofs);
 }
 
-/// @brief Reading binary data vectors. Raw data store as a (N x dim)
-/// @param file_path file path of binary data
-/// @param data returned 2D data vectors
 void ReadData(const std::string& file_path,
               const int num_dimensions,
               DataSet& data_set) {
@@ -78,9 +72,6 @@ void ReadData(const std::string& file_path,
     close(ifs);
 }
 
-/// @brief Reading binary data vectors. Raw data store as a (N x dim)
-/// @param file_path file path of binary data
-/// @param data returned 2D data vectors
 void ReadQuery(const std::string& file_path,
                const int num_dimensions,
                QuerySet& query_set) {

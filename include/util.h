@@ -12,6 +12,14 @@ float EuclideanDistanceSquare(const std::vector<float>& a,
     return sum;
 }
 
+// https://stackoverflow.com/questions/20511347/a-good-hash-function-for-a-vector
+std::size_t HashVector(const std::vector<float>& v) {
+    const char* data = reinterpret_cast<const char*>(v.data());
+    std::size_t size = v.size() * sizeof(v[0]);
+    std::hash<std::string_view> hash;
+    return hash(std::string_view(data, size));
+}
+
 void Recall(const std::string& path,
             const std::string& truth_path, QuerySet& query_set) {
     const int query_num = 10000;

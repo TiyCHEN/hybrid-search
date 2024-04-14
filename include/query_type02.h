@@ -14,7 +14,13 @@ void SolveQueryType02(
     base_hnsw::L2Space space(VEC_DIMENSION);
     std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
             &space, data_set.size(), M, ef_construction);
+    std::map<std::vector<float>, uint32_t> vec2id;
+
     auto s_index02 = std::chrono::system_clock::now();
+    for (uint32_t i = 0; i < data_set.size(); i++) {
+        vec2id[data_set._vecs[i]] = i;
+    }
+
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < data_set.size(); i++) {
         single_hnsw->addPoint(data_set._vecs[i].data(), i, data_set._timestamps[i]);
@@ -33,7 +39,8 @@ void SolveQueryType02(
         const auto& query_vec = query._vec;
         auto& knn = knn_results[q0_indexes[i]];
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        result = single_hnsw->searchKnn(query_vec.data(), 100, 0, 1);
+        assert(vec2id.count(query_vec) > 0);
+        result = single_hnsw->searchKnnUseLabel(query_vec.data(), 100, 0, 1, vec2id[query_vec]);
         while (knn.size() < K) {
             if (result.empty()) {
                 knn.push_back(0);
@@ -84,7 +91,8 @@ void SolveQueryType02(
                 result.push(std::make_pair(-dist, id));
             }
         } else {
-            result = single_hnsw->searchKnn(query_vec.data(), 100, l, r);
+            assert(vec2id.count(query_vec) > 0);
+            result = single_hnsw->searchKnnUseLabel(query_vec.data(), 100, l, r, vec2id[query_vec]);
         }
 
         while (knn.size() < K) {

@@ -1284,6 +1284,29 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         return cur_c;
     }
 
+    std::priority_queue<std::pair<dist_t, labeltype >>
+    searchKnnUseLabel(const void *query_data, size_t k, const float l, const float r, labeltype label, BaseFilterFunctor* isIdAllowed = nullptr) {
+        std::priority_queue<std::pair<dist_t, labeltype >> result;
+        if (cur_element_count == 0) return result;
+
+        assert(label_lookup_.count(label) > 0);
+        tableint currObj = label_lookup_[label];
+
+        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
+        top_candidates = searchBaseLayerST<false>(
+                currObj, query_data, std::max(ef_, k), l, r, isIdAllowed);
+
+        while (top_candidates.size() > k) {
+            top_candidates.pop();
+        }
+        while (top_candidates.size() > 0) {
+            std::pair<dist_t, tableint> rez = top_candidates.top();
+            result.push(std::pair<dist_t, labeltype>(rez.first, getExternalLabel(rez.second)));
+            top_candidates.pop();
+        }
+//         std::cout << result.size() << std::endl;
+        return result;
+    }
 
     std::priority_queue<std::pair<dist_t, labeltype >>
     searchKnn(const void *query_data, size_t k, const float l, const float r, BaseFilterFunctor* isIdAllowed = nullptr) {

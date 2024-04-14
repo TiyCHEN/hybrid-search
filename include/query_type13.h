@@ -19,12 +19,19 @@ void SolveQueryType13(
     const int M = 24;
     const int ef_construction = 140;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
+    std::unordered_map<int, std::map<std::vector<float>, uint32_t>> vec2ids;
     // build hnsw for large label vecs
     auto s_index13 = std::chrono::system_clock::now();
     for (auto label_index : data_label_index) {
         int label = label_index.first;
         auto &index = label_index.second;
         if (index.size() >= HNSW_BUILD_THRASHOLD) {
+//            std::map<std::vector<float>, uint32_t> vec2id;
+//            for (uint32_t i = 0; i < index.size(); i++) {
+//                vec2id[data_set._vecs[index[i]]] = index[i];
+//            }
+//            vec2ids[label] = std::move(vec2id);
+
             base_hnsw::L2Space space(VEC_DIMENSION);
             auto hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
                     &space, index.size(), M, ef_construction);
@@ -62,7 +69,9 @@ void SolveQueryType13(
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
 
         if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
+//            assert(vec2ids[label].count(query_vec) > 0);
             result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
+//            result = label_hnsw[label]->searchKnnUseLabel(query_vec.data(), 100, 0, 1, vec2ids[label][query_vec]);
         } else {
             for (auto id : data_label_index[label]) {
                 #if defined(USE_AVX)
@@ -111,7 +120,9 @@ void SolveQueryType13(
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
 
         if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
-            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, l, r);
+//            assert(vec2ids[label].count(query_vec) > 0);
+            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
+//            result = label_hnsw[label]->searchKnnUseLabel(query_vec.data(), 100, 0, 1, vec2ids[label][query_vec]);
         } else {
             for (auto id : data_label_index[label]) {
                 if (!(l <= data_set._timestamps[id] && data_set._timestamps[id] <= r)) {

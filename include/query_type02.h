@@ -8,12 +8,9 @@ void SolveQueryType02(
         QuerySet& query_set,
         std::vector<std::vector<uint32_t>>& knn_results) {
     // build index
-    const int M = 24;
-    const int ef_construction = 140;
-
     base_hnsw::L2Space space(VEC_DIMENSION);
     std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>> single_hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
-            &space, data_set.size(), M, ef_construction);
+            &space, data_set.size(), M_Q02, EF_CONSTRUCTION_Q02);
     auto s_index02 = std::chrono::system_clock::now();
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < data_set.size(); i++) {
@@ -23,8 +20,7 @@ void SolveQueryType02(
     std::cout << "build index 02 cost: " << time_cost(s_index02, e_index02) << " (ms)\n";
 
     // solve query type0 (ANN)
-    const int ef_search_q0 = 256 + 128 + 64;
-    single_hnsw->setEf(ef_search_q0);
+    single_hnsw->setEf(EF_SEARCH_Q0);
     auto s_q0 = std::chrono::system_clock::now();
     auto &q0_indexes = query_set._type_index[0];
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
@@ -47,8 +43,7 @@ void SolveQueryType02(
     std::cout << "search query 0 cost: " << time_cost(s_q0, e_q0) << " (ms)\n";
 
     // solve query type2 (Range-ANN)
-    const int ef_search_q2 = 128;
-    single_hnsw->setEf(ef_search_q2);
+    single_hnsw->setEf(EF_SEARCH_Q2);
     auto s_q2 = std::chrono::system_clock::now();
     auto &q2_indexes = query_set._type_index[2];
     std::vector<int32_t> data_time_index(data_set.size());

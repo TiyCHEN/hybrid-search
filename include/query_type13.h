@@ -8,16 +8,12 @@
 #include "hnswlib/rangehnswalg.h"
 #include "hnswlib/hnswlib.h"
 
-const int HNSW_BUILD_THRASHOLD = 300;  // TODO: hyperparameter, adjust later
-
 void SolveQueryType13(
     DataSet& data_set,
     QuerySet& query_set,
     std::vector<std::vector<uint32_t>>& knn_results) {
     auto data_label_index = data_set._label_index;
     // build index
-    const int M = 24;
-    const int ef_construction = 140;
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
     // build hnsw for large label vecs
     auto s_index13 = std::chrono::system_clock::now();
@@ -27,7 +23,7 @@ void SolveQueryType13(
         if (index.size() >= HNSW_BUILD_THRASHOLD) {
             base_hnsw::L2Space space(VEC_DIMENSION);
             auto hnsw = std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
-                    &space, index.size(), M, ef_construction);
+                    &space, index.size(), M_Q13, EF_CONSTRUCTION_Q13);
             label_hnsw[label] = std::move(hnsw);
 
 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
@@ -40,9 +36,8 @@ void SolveQueryType13(
     std::cout << "build index 13 cost: " << time_cost(s_index13, e_index13) << " (ms)\n";
 
     // solve query1 (Filter-ANN)
-    const int ef_search_q1 = 256 + 64;
     for (auto &[_, hnsw] : label_hnsw) {
-        hnsw->setEf(ef_search_q1);
+        hnsw->setEf(EF_SEARCH_Q1);
     }
     auto s_q1 = std::chrono::system_clock::now();
     auto &q1_indexes = query_set._type_index[1];
@@ -87,9 +82,8 @@ void SolveQueryType13(
     std::cout << "search query 1 cost: " << time_cost(s_q1, e_q1) << " (ms)\n";
 
     // solve query3 (Filter-Range-ANN)
-    const int ef_search_q3 = 128;
     for (auto &[_, hnsw] : label_hnsw) {
-        hnsw->setEf(ef_search_q3);
+        hnsw->setEf(EF_SEARCH_Q3);
     }
     for (auto& [_, index] : data_set._label_index) {
         std::sort(index.begin(), index.end(), [&](const auto lhs, const auto rhs) {

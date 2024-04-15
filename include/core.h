@@ -32,4 +32,5 @@ const uint32_t QUERY_TYPE_SIZE = 4;
 const float SAMPLE_PROPORTION= 0.001;
 
 const int CHUNK_SIZE = 64;
-const int RANGE_BF_THRASHOLD = 300;
+const int RANGE_BF_THRASHOLD_Q2 = 55000;
+const int RANGE_BF_THRASHOLD_Q3 = 35000;

@@ -73,7 +73,7 @@ void SolveQueryType02(
         int range_cnt = en_pos - st_pos;
 
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        if (range_cnt <= RANGE_BF_THRASHOLD) {
+        if (range_cnt <= RANGE_BF_THRASHOLD_Q2) {
             for (int j = st_pos; j < en_pos; ++j) {
                 auto id = data_time_index[j];
                 #if defined(USE_AVX)

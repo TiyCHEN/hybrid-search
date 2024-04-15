@@ -61,9 +61,7 @@ void SolveQueryType13(
         }
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
 
-        if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
-            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
-        } else {
+        if (data_label_index[label].size() < HNSW_BUILD_THRASHOLD) {
             for (auto id : data_label_index[label]) {
                 #if defined(USE_AVX)
                     float dist = base_hnsw::HybridSimd(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
@@ -72,6 +70,8 @@ void SolveQueryType13(
                 #endif
                 result.push(std::make_pair(-dist, id));
             }
+        } else {
+            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
         }
 
         while (knn.size() < K) {
@@ -90,6 +90,11 @@ void SolveQueryType13(
     const int ef_search_q3 = 128;
     for (auto &[_, hnsw] : label_hnsw) {
         hnsw->setEf(ef_search_q3);
+    }
+    for (auto& [_, index] : data_set._label_index) {
+        std::sort(index.begin(), index.end(), [&](const auto lhs, const auto rhs) {
+            return data_set._timestamps[lhs] < data_set._timestamps[rhs];
+        });
     }
     auto s_q3 = std::chrono::system_clock::now();
     auto &q3_indexes = query_set._type_index[3];
@@ -110,9 +115,7 @@ void SolveQueryType13(
         }
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
 
-        if (data_label_index[label].size() >= HNSW_BUILD_THRASHOLD) {
-            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, l, r);
-        } else {
+        if (data_label_index[label].size() < HNSW_BUILD_THRASHOLD) {
             for (auto id : data_label_index[label]) {
                 if (!(l <= data_set._timestamps[id] && data_set._timestamps[id] <= r)) {
                     continue;
@@ -124,6 +127,28 @@ void SolveQueryType13(
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
                 result.push(std::make_pair(-dist, id));
+            }
+        } else {
+            auto& index = data_set._label_index[label];
+            int st_pos = std::lower_bound(index.begin(), index.end(), l, [&](const auto x, const float ti) {
+                return data_set._timestamps[x] < ti;
+            }) - index.begin();
+            int en_pos = std::lower_bound(index.begin(), index.end(), r, [&](const auto x, const float ti) {
+                return data_set._timestamps[x] <= ti;
+            }) - index.begin();
+            int range_cnt = en_pos - st_pos;
+            if (range_cnt <= RANGE_BF_THRASHOLD_Q3) {
+                for (int j = st_pos; j < en_pos; ++j) {
+                    auto id = index[j];
+                    #if defined(USE_AVX)
+                        float dist = base_hnsw::HybridSimd(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
+                    #else
+                        float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
+                    #endif
+                    result.push(std::make_pair(-dist, id));
+                }
+            } else {
+                result = label_hnsw[label]->searchKnn(query_vec.data(), 100, l, r);
             }
         }
 

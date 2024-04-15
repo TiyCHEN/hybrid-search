@@ -1,5 +1,6 @@
 #include "io.h"
 #include "util.h"
+#include "data_format.h"
 #include "query_type02.h"
 #include "query_type13.h"
 

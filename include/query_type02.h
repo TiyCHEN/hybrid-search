@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core.h"
+#include "util.h"
 #include "data_format.h"
 #include "hnswlib/rangehnswalg.h"
 
@@ -72,11 +74,14 @@ void SolveQueryType02(
             for (int j = st_pos; j < en_pos; ++j) {
                 auto id = data_time_index[j];
                 #if defined(USE_AVX)
-                    float dist = base_hnsw::HybridSimd(data_set._vecs[id].data(),query_vec.data(),&VEC_DIMENSION);
+                    float dist = base_hnsw::HybridSimd(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
-                result.push(std::make_pair(-dist, id));
+                result.push(std::make_pair(dist, id));
+                if (result.size() > K) {
+                    result.pop();
+                }
             }
         } else {
             result = single_hnsw->searchKnn(query_vec.data(), 100, l, r);

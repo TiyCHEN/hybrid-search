@@ -37,11 +37,11 @@ const int M_Q13 = 24;
 const int EF_CONSTRUCTION_Q13 = 140;
 
 const int EF_SEARCH_Q0 = 256 + 128 + 64;
-const int EF_SEARCH_Q1 = 128;
-const int EF_SEARCH_Q2 = 256 + 64;
+const int EF_SEARCH_Q1 = 256 + 64;
+const int EF_SEARCH_Q2 = 128;
 const int EF_SEARCH_Q3 = 128;
 
-const int HNSW_BUILD_THRASHOLD = 300;
+const int HNSW_BUILD_THRASHOLD = 500;
 
-const int RANGE_BF_THRASHOLD_Q2 = 55000;
+const int RANGE_BF_THRASHOLD_Q2 = 50000;
 const int RANGE_BF_THRASHOLD_Q3 = 35000;

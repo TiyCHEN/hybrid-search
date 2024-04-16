@@ -40,6 +40,9 @@ void SolveQueryType02(
             knn.push_back(result.top().second);
             result.pop();
         }
+        #if defined(CLOSE_RESULT_Q0)
+        std::fill(knn.begin(), knn.end(), I32_MAX);
+        #endif
     }
     auto e_q0 = std::chrono::system_clock::now();
     std::cout << "search query 0 cost: " << time_cost(s_q0, e_q0) << " (ms)\n";
@@ -95,6 +98,11 @@ void SolveQueryType02(
             knn.push_back(result.top().second);
             result.pop();
         }
+
+        // cover true result
+        #if defined(CLOSE_RESULT_Q2)
+        std::fill(knn.begin(), knn.end(), I32_MAX);
+        #endif
     }
     auto e_q2 = std::chrono::system_clock::now();
     std::cout << "search query 2 cost: " << time_cost(s_q2, e_q2) << " (ms)\n";

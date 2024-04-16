@@ -75,6 +75,9 @@ void SolveQueryType13(
             knn.push_back(result.top().second);
             result.pop();
         }
+        #if defined(CLOSE_RESULT_Q1)
+        std::fill(knn.begin(), knn.end(), I32_MAX);
+        #endif
     }
     auto e_q1 = std::chrono::system_clock::now();
     std::cout << "search query 1 cost: " << time_cost(s_q1, e_q1) << " (ms)\n";
@@ -109,7 +112,7 @@ void SolveQueryType13(
         auto& index = data_label_index[label];
         if (index.size() < HNSW_BUILD_THRASHOLD) {
             for (auto id : index) {
-                if (!(l <= data_set._timestamps[id] && data_set._timestamps[id] <= r)) {
+                if (data_set._timestamps[id] < l || data_set._timestamps[id] > r) {
                     continue;
                 }
                 #if defined(USE_AVX)
@@ -156,6 +159,9 @@ void SolveQueryType13(
             knn.push_back(result.top().second);
             result.pop();
         }
+        #if defined(CLOSE_RESULT_Q3)
+        std::fill(knn.begin(), knn.end(), I32_MAX);
+        #endif
     }
     auto e_q3 = std::chrono::system_clock::now();
     std::cout << "search query 3 cost: " << time_cost(s_q3, e_q3) << " (ms)\n";

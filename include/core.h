@@ -1,6 +1,8 @@
 #pragma once
 
 #include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
 #include <cassert>
@@ -11,6 +13,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <mutex>
 #include <random>
@@ -20,8 +23,8 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include <sys/mman.h>
-#include <sys/stat.h>
+
+const int I32_MAX = std::numeric_limits<int32_t>::max();
 
 const int K = 100;  // top-k knns
 const uint32_t VEC_DIMENSION = 100;
@@ -36,7 +39,7 @@ const int EF_CONSTRUCTION_Q02 = 140;
 const int M_Q13 = 24;
 const int EF_CONSTRUCTION_Q13 = 140;
 
-const int EF_SEARCH_Q0 = 256 + 128 + 64;
+const int EF_SEARCH_Q0 = 512;
 const int EF_SEARCH_Q1 = 256 + 64;
 const int EF_SEARCH_Q2 = 128;
 const int EF_SEARCH_Q3 = 128;
@@ -45,3 +48,20 @@ const int HNSW_BUILD_THRASHOLD = 500;
 
 const int RANGE_BF_THRASHOLD_Q2 = 55000;
 const int RANGE_BF_THRASHOLD_Q3 = 35000;
+
+// change result state here
+// 0bXXXX, X = 0(close) or 1(open)
+#define RESULT_STATE 0b1111
+
+#if !(RESULT_STATE >> 3 & 1)
+#define CLOSE_RESULT_Q0
+#endif
+#if !(RESULT_STATE >> 2 & 1)
+#define CLOSE_RESULT_Q1
+#endif
+#if !(RESULT_STATE >> 1 & 1)
+#define CLOSE_RESULT_Q2
+#endif
+#if !(RESULT_STATE >> 0 & 1)
+#define CLOSE_RESULT_Q3
+#endif

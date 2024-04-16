@@ -31,7 +31,7 @@ void SolveQueryType02(
         const auto& query_vec = query._vec;
         auto& knn = knn_results[q0_indexes[i]];
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        result = single_hnsw->searchKnn(query_vec.data(), 100, 0, 1);
+        result = single_hnsw->searchKnn(query_vec.data(), 100);
         while (knn.size() < K) {
             if (result.empty()) {
                 knn.push_back(0);
@@ -84,7 +84,7 @@ void SolveQueryType02(
                 }
             }
         } else {
-            result = single_hnsw->searchKnn(query_vec.data(), 100, l, r);
+            result = single_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r);
         }
 
         while (knn.size() < K) {

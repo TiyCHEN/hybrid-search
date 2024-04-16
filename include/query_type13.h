@@ -64,7 +64,7 @@ void SolveQueryType13(
                 }
             }
         } else {
-            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, 0, 1);
+            result = label_hnsw[label]->searchKnn(query_vec.data(), 100);
         }
 
         while (knn.size() < K) {
@@ -144,7 +144,7 @@ void SolveQueryType13(
                     }
                 }
             } else {
-                result = label_hnsw[label]->searchKnn(query_vec.data(), 100, l, r);
+                result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r);
             }
         }
 

@@ -7,17 +7,20 @@ struct DataSet {
     std::vector<float> _timestamps;
     std::vector<std::vector<float>> _vecs;
     std::unordered_map<int32_t, std::vector<int32_t>> _label_index;
+    std::unordered_map<size_t, std::list<int32_t>> _vec2id;
+    std::vector<int32_t> _labels;
 
     // functions
     void reserve(size_t size) {
-        // _labels.reserve(size);
         _timestamps.reserve(size);
         _vecs.reserve(size);
+        _labels.reserve(size);
     }
 
     void resize(size_t size) {
         _timestamps.resize(size);
         _vecs.resize(size);
+        _labels.resize(size);
     }
 
     size_t size() {

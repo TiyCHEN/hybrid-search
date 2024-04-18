@@ -30,6 +30,27 @@ void SolveQueryType13(
     auto e_index13 = std::chrono::system_clock::now();
     std::cout << "build index 13 cost: " << time_cost(s_index13, e_index13) << " (ms)\n";
 
+    auto GetLabeledQueryId = [&](const auto& query_vec, auto label) -> int32_t {
+        auto query_hash = HashVector(query_vec);
+        auto ptr = data_set._vec2id.find(query_hash);
+        if (ptr == data_set._vec2id.end()) {
+            return -1;
+        } else if (ptr->second.size() == 1) {
+            if (label == data_set._labels[ptr->second.front()]) {
+                return ptr->second.front();
+            } else {
+                return -1;
+            }
+        } else {
+            for (auto data_id : ptr->second) {
+                if (label == data_set._labels[data_id] && query_vec == data_set._vecs[data_id]) {
+                    return data_id;
+                }
+            }
+        }
+        return -1;
+    };
+
     // solve query1 (Filter-ANN)
     for (auto &[_, hnsw] : label_hnsw) {
         hnsw->setEf(EF_SEARCH_Q1);
@@ -64,7 +85,12 @@ void SolveQueryType13(
                 }
             }
         } else {
-            result = label_hnsw[label]->searchKnn(query_vec.data(), 100);
+            auto query_id = GetLabeledQueryId(query_vec, label);
+            if (query_id != -1) {
+                result = label_hnsw[label]->searchIDKnn(query_vec.data(), 100, query_id);
+            } else {
+                result = label_hnsw[label]->searchKnn(query_vec.data(), 100);
+            }
         }
 
         while (knn.size() < K) {
@@ -147,7 +173,12 @@ void SolveQueryType13(
                     }
                 }
             } else {
-                result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r);
+                auto query_id = GetLabeledQueryId(query_vec, label);
+                if (query_id != -1) {
+                    result = label_hnsw[label]->searchIDKnnWithRange(query_vec.data(), 100, l, r, query_id);
+                } else {
+                    result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r);
+                }
             }
         }
 

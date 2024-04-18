@@ -5,6 +5,7 @@
 
 #pragma once
 #include "core.h"
+#include "util.h"
 #include "data_format.h"
 
 /// "output.bin" for evaluation
@@ -53,23 +54,38 @@ void ReadData(const std::string& file_path,
     base_iter = static_cast<char*>(base_iter) + sizeof(uint32_t);
     float* iter = reinterpret_cast<float*>(base_iter);
     data_set.resize(N);
-    auto& node_label_index = data_set._label_index;
+    auto& data_label_index = data_set._label_index;
     for (int32_t i = 0; i < N; ++i) {
-        float label = *iter++;
+        int32_t label = *iter++;
+        data_set._labels[i] = label;
         data_set._timestamps[i] = *iter++;
         data_set._vecs[i].resize(num_dimensions - 2);
         memcpy(data_set._vecs[i].data(), iter, (num_dimensions - 2) * sizeof(float));
         iter += num_dimensions - 2;
-        if (!node_label_index.count(label)) {
-            node_label_index[label] = {i};
+        if (!data_label_index.count(label)) {
+            data_label_index[label] = {i};
         } else {
-            node_label_index[label].emplace_back(i);
+            data_label_index[label].emplace_back(i);
         }
     }
-
     flag = munmap(mapped_buffer, file_size);
     assert(flag != -1);
     close(ifs);
+    std::vector<size_t> hashes(N);
+    #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+    for (int32_t i = 0; i < N; ++i) {
+        hashes[i] = HashVector(data_set._vecs[i]);
+    }
+    auto& data_vec2id = data_set._vec2id;
+    data_vec2id.reserve(N);
+    for (int32_t i = 0; i < N; ++i) {
+        auto hash = hashes[i];
+        if (!data_vec2id.count(hash)) {
+            data_vec2id[hash] = {i};
+        } else {
+            data_vec2id[hash].emplace_back(i);
+        }
+    }
 }
 
 void ReadQuery(const std::string& file_path,

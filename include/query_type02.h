@@ -21,6 +21,23 @@ void SolveQueryType02(
     auto e_index02 = std::chrono::system_clock::now();
     std::cout << "build index 02 cost: " << time_cost(s_index02, e_index02) << " (ms)\n";
 
+    auto GetQueryId = [&](const auto& query_vec) -> int32_t {
+        auto query_hash = HashVector(query_vec);
+        auto ptr = data_set._vec2id.find(query_hash);
+        if (ptr == data_set._vec2id.end()) {
+            return -1;
+        } else if (ptr->second.size() == 1) {
+            return ptr->second.front();
+        } else {
+            for (auto data_id : ptr->second) {
+                if (query_vec == data_set._vecs[data_id]) {
+                    return data_id;
+                }
+            }
+        }
+        return -1;
+    };
+
     // solve query type0 (ANN)
     single_hnsw->setEf(EF_SEARCH_Q0);
     auto s_q0 = std::chrono::system_clock::now();
@@ -31,7 +48,12 @@ void SolveQueryType02(
         const auto& query_vec = query._vec;
         auto& knn = knn_results[q0_indexes[i]];
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        result = single_hnsw->searchKnn(query_vec.data(), 100);
+        auto query_id = GetQueryId(query_vec);
+        if (query_id != -1) {
+            result = single_hnsw->searchIDKnn(query_vec.data(), 100, query_id);
+        } else {
+            result = single_hnsw->searchKnn(query_vec.data(), 100);
+        }
         while (knn.size() < K) {
             if (result.empty()) {
                 knn.push_back(0);
@@ -87,7 +109,12 @@ void SolveQueryType02(
                 }
             }
         } else {
-            result = single_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r);
+            auto query_id = GetQueryId(query_vec);
+            if (query_id != -1) {
+                result = single_hnsw->searchIDKnnWithRange(query_vec.data(), 100, l, r, query_id);
+            } else {
+                result = single_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r);
+            }
         }
 
         while (knn.size() < K) {

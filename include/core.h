@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <list>
 #include <map>
 #include <mutex>
 #include <random>
@@ -39,7 +40,7 @@ const int EF_CONSTRUCTION_Q02 = 140;
 const int M_Q13 = 24;
 const int EF_CONSTRUCTION_Q13 = 140;
 
-const int EF_SEARCH_Q0 = 512;
+const int EF_SEARCH_Q0 = 256 + 128 + 64;
 const int EF_SEARCH_Q1 = 256 + 64;
 const int EF_SEARCH_Q2 = 128;
 const int EF_SEARCH_Q3 = 128;

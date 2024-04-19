@@ -38,6 +38,10 @@ const int M_Q02 = 24;
 const int EF_CONSTRUCTION_Q02 = 140;
 const int M_Q13 = 24;
 const int EF_CONSTRUCTION_Q13 = 140;
+const int M_Q0123 = 24;
+const int EF_CONSTRUCTION_Q0123 = 140;
+
+const int HNSW_MERGE_THRASHOLD = 100000;
 
 const int EF_SEARCH_Q0 = 512;
 const int EF_SEARCH_Q1 = 256 + 64;

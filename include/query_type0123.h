@@ -15,18 +15,32 @@ void SolveQueryType0123(
     // build hnsw for large label vecs
     auto s_index13 = std::chrono::system_clock::now();
     int32_t other_hnsw_size = 0;
+    int32_t biggest_label = -1;
+    size_t biggest_label_size = 0;
+    for (auto& [label, index] : data_label_index) {
+        if (index.size() > biggest_label_size) {
+            biggest_label_size = index.size();
+            biggest_label = label;
+        }
+        if (index.size() < HNSW_MERGE_THRASHOLD) {
+            other_hnsw_size += index.size();
+        }
+    }
     for (auto& [label, index] : data_label_index) {
         if (index.size() >= HNSW_BUILD_THRASHOLD) {
             base_hnsw::L2Space space(VEC_DIMENSION);
-            label_hnsw[label] = std::move(std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
-                                          &space, index.size(), M_Q13, EF_CONSTRUCTION_Q13));
+            if (label != biggest_label) {
+                label_hnsw[label] = std::move(std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
+                                              &space, index.size(), M_Q13, EF_CONSTRUCTION_Q13));
+            } else {
+                label_hnsw[label] = std::move(std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
+                                              &space, std::min(data_set.size(), index.size() + other_hnsw_size),
+                                              M_Q13, EF_CONSTRUCTION_Q13));
+            }
             #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
             for (uint32_t i = 0; i < index.size(); i++) {
                 label_hnsw[label]->addPoint(data_set._vecs[index[i]].data(), index[i], data_set._timestamps[index[i]]);
             }
-        }
-        if (index.size() < HNSW_MERGE_THRASHOLD) {
-            other_hnsw_size += index.size();
         }
     }
     auto e_index13 = std::chrono::system_clock::now();
@@ -171,11 +185,10 @@ void SolveQueryType0123(
 
     // build index02
     std::vector<std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> merged_hnsw;
-    base_hnsw::L2Space space(VEC_DIMENSION);
-    merged_hnsw.push_back(std::move(std::make_unique<base_hnsw::RangeHierarchicalNSW<float>>(
-            &space, data_set.size(), M_Q02, EF_CONSTRUCTION_Q02)));
+    merged_hnsw.push_back(std::move(label_hnsw[biggest_label]));
     auto s_index02 = std::chrono::system_clock::now();
     for (auto& [label, index] : data_label_index) {
+        if (label == biggest_label) continue;
         if (index.size() >= HNSW_MERGE_THRASHOLD) {
             merged_hnsw.push_back(std::move(label_hnsw[label]));
         } else {
@@ -201,7 +214,13 @@ void SolveQueryType0123(
         const auto& query_vec = query._vec;
         auto& knn = knn_results[q0_indexes[i]];
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
+        bool is_first = true;
         for (auto& hnsw : merged_hnsw) {
+            if (is_first) {
+                result = hnsw->searchKnn(query_vec.data(), 100);
+                is_first = false;
+                continue;
+            }
             auto partial_result = hnsw->searchKnn(query_vec.data(), 100);
             while (!partial_result.empty()) {
                 result.push(partial_result.top());
@@ -268,7 +287,13 @@ void SolveQueryType0123(
                 }
             }
         } else {
+            bool is_first = true;
             for (auto& hnsw : merged_hnsw) {
+                if (is_first) {
+                    result = hnsw->searchKnnWithRange(query_vec.data(), 100, l, r);
+                    is_first = false;
+                    continue;
+                }
                 auto partial_result = hnsw->searchKnnWithRange(query_vec.data(), 100, l, r);
                 while (!partial_result.empty()) {
                     result.push(partial_result.top());

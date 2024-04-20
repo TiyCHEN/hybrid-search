@@ -179,8 +179,13 @@ void SolveQueryType0123(
 
 
     // build index02
-    auto whole_hnsw = std::move(label_hnsw[biggest_label]);
     auto s_index02 = std::chrono::system_clock::now();
+    std::vector<int32_t> data_time_index(data_set.size());
+    std::iota(data_time_index.begin(), data_time_index.end(), 0);
+    std::sort(data_time_index.begin(), data_time_index.end(), [&](const auto lhs, const auto rhs) {
+        return data_set._timestamps[lhs] < data_set._timestamps[rhs];
+    });
+    auto whole_hnsw = std::move(label_hnsw[biggest_label]);
     for (auto& [label, index] : data_label_index) {
         if (label == biggest_label) continue;
         #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
@@ -188,6 +193,14 @@ void SolveQueryType0123(
             whole_hnsw->addPoint(data_set._vecs[index[i]].data(), index[i], data_set._timestamps[index[i]]);
         }
     }
+
+    #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+    for (size_t i = 0; i < data_time_index.size(); i++) {
+        if (i + 1 < data_time_index.size()) {
+            whole_hnsw->addRangeEdge(data_time_index[i], data_time_index[i + 1]);
+        }
+    }
+
     auto e_index02 = std::chrono::system_clock::now();
     std::cout << "build index 02 cost: " << time_cost(s_index02, e_index02) << " (ms)\n";
 
@@ -221,11 +234,6 @@ void SolveQueryType0123(
     whole_hnsw->setEf(EF_SEARCH_Q2);
     auto s_q2 = std::chrono::system_clock::now();
     auto &q2_indexes = query_set._type_index[2];
-    std::vector<int32_t> data_time_index(data_set.size());
-    std::iota(data_time_index.begin(), data_time_index.end(), 0);
-    std::sort(data_time_index.begin(), data_time_index.end(), [&](const auto lhs, const auto rhs) {
-        return data_set._timestamps[lhs] < data_set._timestamps[rhs];
-    });
     #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q2_indexes.size(); i++)  {
         const auto& query = query_set._queries[q2_indexes[i]];

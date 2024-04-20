@@ -28,8 +28,11 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     size_t M_{0};
     size_t maxM_{0};
     size_t maxM0_{0};
+    size_t rangeM_{0};
     size_t ef_construction_{0};
-    size_t ef_{ 0 };
+    size_t ef_{0};
+
+    size_t size_range_link_per_element_{0};
 
     double mult_{0.0}, revSize_{0.0};
     int maxlevel_{0};
@@ -49,6 +52,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     char *data_level0_memory_{nullptr};
     char **linkLists_{nullptr};
+    char *range_link_level0_memory_{nullptr};
     std::vector<int> element_levels_;  // keeps level of each element
     mutable std::mutex timestamp_lock;
     std::unordered_map<tableint, float> element_timestamp_;
@@ -94,6 +98,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         size_t M = 16,
         size_t ef_construction = 200,
         size_t random_seed = 100,
+        size_t rangeM = 4,
         bool allow_replace_deleted = false)
         : label_op_locks_(MAX_LABEL_OPERATION_LOCKS),
             link_list_locks_(max_elements),
@@ -112,6 +117,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             HNSWERR << "         Cap to 10000 will be applied for the rest of the processing." << std::endl;
             M_ = 10000;
         }
+        rangeM_ = rangeM;
         maxM_ = M_;
         maxM0_ = M_ * 2;
         ef_construction_ = std::max(ef_construction, M_);
@@ -120,6 +126,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         level_generator_.seed(random_seed);
         update_probability_generator_.seed(random_seed + 1);
 
+        size_range_link_per_element_ = rangeM_ * sizeof(tableint) + sizeof(linklistsizeint);
         size_links_level0_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);
         size_data_per_element_ = size_links_level0_ + data_size_ + sizeof(labeltype);
         offsetData_ = size_links_level0_;
@@ -128,6 +135,10 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         data_level0_memory_ = (char *) malloc(max_elements_ * size_data_per_element_);
         if (data_level0_memory_ == nullptr)
+            throw std::runtime_error("Not enough memory");
+
+        range_link_level0_memory_ = (char *) malloc(max_elements_ * size_range_link_per_element_);
+        if (range_link_level0_memory_ == nullptr)
             throw std::runtime_error("Not enough memory");
 
         cur_element_count = 0;
@@ -203,7 +214,6 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     inline char *getDataByInternalId(tableint internal_id) const {
-        // std::cout << internal_id << " " << size_data_per_element_ << std::endl;
         return (data_level0_memory_ + internal_id * size_data_per_element_ + offsetData_);
     }
 
@@ -466,6 +476,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             char* ep_data = getDataByInternalId(ep_id);
             dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
             lowerBound = dist;
+//            std::cout << "dist: " << dist << '\n';
             top_candidates.emplace(dist, ep_id);
             if (!bare_bone_search && stop_condition) {
                 stop_condition->add_point_to_result(getExternalLabel(ep_id), ep_data, dist);
@@ -624,6 +635,11 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     linklistsizeint *get_linklist0(tableint internal_id) const {
         return (linklistsizeint *) (data_level0_memory_ + internal_id * size_data_per_element_ + offsetLevel0_);
+    }
+
+
+    linklistsizeint *get_range_linklist0(tableint internal_id) const {
+        return (linklistsizeint *) (range_link_level0_memory_ + internal_id + size_range_link_per_element_ + offsetLevel0_);
     }
 
 
@@ -1295,6 +1311,29 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         tableint *ll = (tableint *) (data + 1);
         memcpy(result.data(), ll, size * sizeof(tableint));
         return result;
+    }
+
+    void internalAddEdge(tableint a, tableint b) {
+        std::unique_lock <std::mutex> lock_el(link_list_locks_[a]);
+        std::cout << "Add: " << a << " -> " << b << '\n';
+        linklistsizeint *ll_cur = get_range_linklist0(a);
+        auto cnt = getListCount(ll_cur);
+        if (cnt == rangeM_) {
+            std::runtime_error("PANIC: add range edge over rangeM_ size!");
+        }
+        setListCount(ll_cur, cnt + 1);
+        tableint *data = (tableint *) (ll_cur + 1);
+        data[cnt] = b;
+    }
+
+    void addRangeEdge(labeltype label1, labeltype label2) {
+        std::unique_lock <std::mutex> lock_table(label_lookup_lock);
+        tableint tid1 = label_lookup_[label1];
+        tableint tid2 = label_lookup_[label2];
+        lock_table.unlock();
+
+        internalAddEdge(tid1, tid2);
+        internalAddEdge(tid2, tid1);
     }
 
 

@@ -10,6 +10,8 @@
 #include <list>
 #include <memory>
 
+#define MAX_NUM 1e8
+
 namespace base_hnsw {
 typedef unsigned int tableint;
 typedef unsigned int linklistsizeint;
@@ -316,14 +318,13 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         tableint ep_id,
         const void *data_point,
         size_t ef,
+        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> &top_candidates,
         BaseFilterFunctor* isIdAllowed = nullptr,
         BaseSearchStopCondition<dist_t>* stop_condition = nullptr) {
         VisitedList *vl = visited_list_pool_->getFreeVisitedList();
         vl_type *visited_array = vl->mass;
         vl_type visited_array_tag = vl->curV;
-        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidate_set;
-
         dist_t lowerBound;
         if (bare_bone_search || 
             (!isMarkedDeleted(ep_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id))))) {
@@ -452,12 +453,12 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             size_t ef,
             const float l,
             const float r,
+            std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> &top_candidates,
             BaseFilterFunctor* isIdAllowed = nullptr,
             BaseSearchStopCondition<dist_t>* stop_condition = nullptr) {
         VisitedList *vl = visited_list_pool_->getFreeVisitedList();
         vl_type *visited_array = vl->mass;
         vl_type visited_array_tag = vl->curV;
-        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidate_set;
 
         dist_t lowerBound;
@@ -1420,7 +1421,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r, BaseFilterFunctor* isIdAllowed = nullptr) {
+    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r,
+                       std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> &top_candidates,
+                       BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
 
@@ -1453,25 +1456,34 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
-        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         top_candidates = searchBaseLayerSTWithRange<false>(
-                currObj, query_data, std::max(ef_, k), l, r, isIdAllowed);
+                currObj, query_data, std::max(ef_, k), l, r, top_candidates, isIdAllowed);
 
         while (top_candidates.size() > k) {
             top_candidates.pop();
         }
+        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> shadow;
         while (top_candidates.size() > 0) {
             std::pair<dist_t, tableint> rez = top_candidates.top();
-            result.push(std::pair<dist_t, labeltype>(rez.first, getExternalLabel(rez.second)));
+            labeltype external_label = -1;
+            if (rez.second < MAX_NUM) {
+                external_label = getExternalLabel(rez.second);
+            } else {
+                external_label = rez.second - MAX_NUM;
+            }
+            result.push(std::pair<dist_t, labeltype>(rez.first, external_label));
+            shadow.push(std::pair<dist_t, labeltype>(rez.first, MAX_NUM + external_label));
             top_candidates.pop();
         }
-//         std::cout << result.size() << std::endl;
+        std::swap(top_candidates, shadow);
         return result;
     }
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnn(const void *query_data, size_t k, BaseFilterFunctor* isIdAllowed = nullptr) {
+    searchKnn(const void *query_data, size_t k,
+              std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> &top_candidates,
+              BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
         
@@ -1504,79 +1516,29 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
-        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         top_candidates = searchBaseLayerST<false>(
-                currObj, query_data, std::max(ef_, k), isIdAllowed);
+                currObj, query_data, std::max(ef_, k), top_candidates, isIdAllowed);
 
         while (top_candidates.size() > k) {
             top_candidates.pop();
         }
+
+        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> shadow;
         while (top_candidates.size() > 0) {
             std::pair<dist_t, tableint> rez = top_candidates.top();
-            result.push(std::pair<dist_t, labeltype>(rez.first, getExternalLabel(rez.second)));
-            top_candidates.pop();
-        }
-//         std::cout << result.size() << std::endl;
-        return result;
-    }
-
-
-    std::vector<std::pair<dist_t, labeltype >>
-    searchStopConditionClosest(
-        const void *query_data,
-        BaseSearchStopCondition<dist_t>& stop_condition,
-        BaseFilterFunctor* isIdAllowed = nullptr) const {
-        
-        std::vector<std::pair<dist_t, labeltype >> result;
-        if (cur_element_count == 0) return result;
-
-        tableint currObj = enterpoint_node_;
-
-        // std::cout << currObj << std::endl;
-        dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
-
-        for (int level = maxlevel_; level > 0; level--) {
-            bool changed = true;
-            while (changed) {
-                changed = false;
-                unsigned int *data;
-
-                data = (unsigned int *) get_linklist(currObj, level);
-                int size = getListCount(data);
-                metric_hops++;
-                metric_distance_computations+=size;
-
-                tableint *datal = (tableint *) (data + 1);
-                for (int i = 0; i < size; i++) {
-                    tableint cand = datal[i];
-                    if (cand < 0 || cand > max_elements_)
-                        throw std::runtime_error("cand error");
-                    dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
-
-                    if (d < curdist) {
-                        curdist = d;
-                        currObj = cand;
-                        changed = true;
-                    }
-                }
+            labeltype external_label = -1;
+            if (rez.second < MAX_NUM) {
+                external_label = getExternalLabel(rez.second);
+            } else {
+                external_label = rez.second - MAX_NUM;
             }
-        }
-
-        std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
-        top_candidates = searchBaseLayerST<false>(currObj, query_data, 0, isIdAllowed, &stop_condition);
-
-        size_t sz = top_candidates.size();
-        result.resize(sz);
-        while (!top_candidates.empty()) {
-            result[--sz] = top_candidates.top();
+            result.push(std::pair<dist_t, labeltype>(rez.first, external_label));
+            shadow.push(std::pair<dist_t, labeltype>(rez.first, MAX_NUM + external_label));
             top_candidates.pop();
         }
-
-        stop_condition.filter_results(result);
-
+        std::swap(top_candidates, shadow);
         return result;
     }
-
 
     void checkIntegrity() {
         int connections_checked = 0;

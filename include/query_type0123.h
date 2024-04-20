@@ -5,6 +5,11 @@
 #include "data_format.h"
 #include "hnswlib/rangehnswalg.h"
 
+using hnsw_priority_queue = std::priority_queue<
+        std::pair<float, base_hnsw::tableint>,
+        std::vector<std::pair<float, base_hnsw::tableint>>,
+        base_hnsw::RangeHierarchicalNSW<float>::CompareByFirst>;
+
 void SolveQueryType0123(
     DataSet& data_set,
     QuerySet& query_set,
@@ -80,7 +85,8 @@ void SolveQueryType0123(
                 }
             }
         } else {
-            result = label_hnsw[label]->searchKnn(query_vec.data(), 100);
+            hnsw_priority_queue top_candidates = {};
+            result = label_hnsw[label]->searchKnn(query_vec.data(), 100, top_candidates);
         }
 
         while (knn.size() < K) {
@@ -163,7 +169,8 @@ void SolveQueryType0123(
                     }
                 }
             } else {
-                result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r);
+                hnsw_priority_queue top_candidates;
+                result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r, top_candidates);
             }
         }
 
@@ -213,22 +220,11 @@ void SolveQueryType0123(
         const auto& query = query_set._queries[q0_indexes[i]];
         const auto& query_vec = query._vec;
         auto& knn = knn_results[q0_indexes[i]];
+        hnsw_priority_queue top_candidates;
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
         bool is_first = true;
         for (auto& hnsw : merged_hnsw) {
-            if (is_first) {
-                result = hnsw->searchKnn(query_vec.data(), 100);
-                is_first = false;
-                continue;
-            }
-            auto partial_result = hnsw->searchKnn(query_vec.data(), 100);
-            while (!partial_result.empty()) {
-                result.push(partial_result.top());
-                partial_result.pop();
-                if (result.size() > K) {
-                    result.pop();
-                }
-            }
+            result = hnsw->searchKnn(query_vec.data(), 100, top_candidates);
         }
         while (knn.size() < K) {
             if (result.empty()) {
@@ -256,7 +252,7 @@ void SolveQueryType0123(
     std::sort(data_time_index.begin(), data_time_index.end(), [&](const auto lhs, const auto rhs) {
         return data_set._timestamps[lhs] < data_set._timestamps[rhs];
     });
-#pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+    #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (uint32_t i = 0; i < q2_indexes.size(); i++)  {
         const auto& query = query_set._queries[q2_indexes[i]];
         const float l = query._l;
@@ -287,21 +283,9 @@ void SolveQueryType0123(
                 }
             }
         } else {
-            bool is_first = true;
+            hnsw_priority_queue top_candidates;
             for (auto& hnsw : merged_hnsw) {
-                if (is_first) {
-                    result = hnsw->searchKnnWithRange(query_vec.data(), 100, l, r);
-                    is_first = false;
-                    continue;
-                }
-                auto partial_result = hnsw->searchKnnWithRange(query_vec.data(), 100, l, r);
-                while (!partial_result.empty()) {
-                    result.push(partial_result.top());
-                    partial_result.pop();
-                    if (result.size() > K) {
-                        result.pop();
-                    }
-                }
+                result = hnsw->searchKnnWithRange(query_vec.data(), 100, l, r, top_candidates);
             }
         }
 

@@ -524,13 +524,28 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             _mm_prefetch((char *) (data + 2), _MM_HINT_T0);
 #endif
 
+            linklistsizeint *range_link_list = get_range_linklist0(current_node_id);
+            size_t range_size = getListCount(range_link_list);
+
+            std::vector<int> candidate_ids;
+            candidate_ids.reserve(range_size + size);
+
             for (size_t j = 1; j <= size; j++) {
                 int candidate_id = *(data + j);
-//                    if (candidate_id == 0) continue;
+                candidate_ids.push_back(candidate_id);
+            }
+
+            for (size_t j = 1; j <= range_size; j++) {
+                int candidate_id = range_link_list[j];
+//                std::cout << "count size: " << range_size << ", candidate id: " << candidate_id << '\n';
+                candidate_ids.push_back(candidate_id);
+            }
+
+            for (int candidate_id : candidate_ids) {
 #ifdef USE_SSE
-                _mm_prefetch((char *) (visited_array + *(data + j + 1)), _MM_HINT_T0);
-                _mm_prefetch(data_level0_memory_ + (*(data + j + 1)) * size_data_per_element_ + offsetData_,
-                                _MM_HINT_T0);  ////////////
+//                _mm_prefetch((char *) (visited_array + *(data + j + 1)), _MM_HINT_T0);
+//                _mm_prefetch(data_level0_memory_ + (*(data + j + 1)) * size_data_per_element_ + offsetData_,
+//                                _MM_HINT_T0);  ////////////
 #endif
                 if (!(visited_array[candidate_id] == visited_array_tag)) {
                     visited_array[candidate_id] = visited_array_tag;
@@ -639,7 +654,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     linklistsizeint *get_range_linklist0(tableint internal_id) const {
-        return (linklistsizeint *) (range_link_level0_memory_ + internal_id + size_range_link_per_element_ + offsetLevel0_);
+        return (linklistsizeint *) (range_link_level0_memory_ + internal_id * size_range_link_per_element_);
     }
 
 
@@ -1315,10 +1330,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     void internalAddEdge(tableint a, tableint b) {
         std::unique_lock <std::mutex> lock_el(link_list_locks_[a]);
-        std::cout << "Add: " << a << " -> " << b << '\n';
         linklistsizeint *ll_cur = get_range_linklist0(a);
         auto cnt = getListCount(ll_cur);
-        if (cnt == rangeM_) {
+        if (cnt >= rangeM_) {
             std::runtime_error("PANIC: add range edge over rangeM_ size!");
         }
         setListCount(ll_cur, cnt + 1);
@@ -1389,6 +1403,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         tableint enterpoint_copy = enterpoint_node_;
 
         memset(data_level0_memory_ + cur_c * size_data_per_element_ + offsetLevel0_, 0, size_data_per_element_);
+        memset(range_link_level0_memory_ + cur_c * size_range_link_per_element_ + offsetLevel0_, 0, size_range_link_per_element_);
 
         // Initialisation of the data and label
         memcpy(getExternalLabeLp(cur_c), &label, sizeof(labeltype));
@@ -1459,34 +1474,39 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r, BaseFilterFunctor* isIdAllowed = nullptr) {
+    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r, labeltype query_id = -1, BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
 
-        tableint currObj = enterpoint_node_;
-        dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
-        for (int level = maxlevel_; level > 0; level--) {
-            bool changed = true;
-            while (changed) {
-                changed = false;
-                unsigned int *data;
+        tableint currObj = -1;
+        if (query_id != -1) {
+            currObj = label_lookup_[query_id];
+        } else {
+            currObj = enterpoint_node_;
+            dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+            for (int level = maxlevel_; level > 0; level--) {
+                bool changed = true;
+                while (changed) {
+                    changed = false;
+                    unsigned int *data;
 
-                data = (unsigned int *) get_linklist(currObj, level);
-                int size = getListCount(data);
-                metric_hops++;
-                metric_distance_computations+=size;
+                    data = (unsigned int *) get_linklist(currObj, level);
+                    int size = getListCount(data);
+                    metric_hops++;
+                    metric_distance_computations+=size;
 
-                tableint *datal = (tableint *) (data + 1);
-                for (int i = 0; i < size; i++) {
-                    tableint cand = datal[i];
-                    if (cand < 0 || cand > max_elements_)
-                        throw std::runtime_error("cand error");
-                    dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+                    tableint *datal = (tableint *) (data + 1);
+                    for (int i = 0; i < size; i++) {
+                        tableint cand = datal[i];
+                        if (cand < 0 || cand > max_elements_)
+                            throw std::runtime_error("cand error");
+                        dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
 
-                    if (d < curdist) {
-                        curdist = d;
-                        currObj = cand;
-                        changed = true;
+                        if (d < curdist) {
+                            curdist = d;
+                            currObj = cand;
+                            changed = true;
+                        }
                     }
                 }
             }

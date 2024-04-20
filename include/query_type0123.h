@@ -292,7 +292,7 @@ void SolveQueryType0123(
             if (query_id == -1) {
                 abort();
             }
-            result = whole_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r);
+            result = whole_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r, query_id);
         }
 
         while (knn.size() < K) {

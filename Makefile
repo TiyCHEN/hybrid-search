@@ -4,13 +4,13 @@ clean:
 	rm -fr build && rm -fr bin && rm -f output.bin
 
 debug-build: clean
-	mkdir -p bin && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug && make -j
+	mkdir -p bin && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug && make -j32
 
 debug: debug-build
 	cd bin && gdb main
 
 build: clean
-	mkdir -p bin && mkdir build && cd build && cmake .. && make -j
+	mkdir -p bin && mkdir build && cd build && cmake .. && make -j32
 
 run:
 	cd bin && ./main

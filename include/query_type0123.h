@@ -219,6 +219,29 @@ void SolveQueryType0123(
 
     // solve query type2 (Range-ANN)
     whole_hnsw->setEf(EF_SEARCH_Q2);
+    auto GetRangeQueryId = [&](const auto& query_vec, float l, float r) -> int32_t {
+        auto query_hash = HashVector(query_vec);
+        auto ptr = data_set._vec2id.find(query_hash);
+        if (ptr == data_set._vec2id.end()) {
+            return -1;
+        } else if (ptr->second.size() == 1) {
+            if (l <= data_set._timestamps[ptr->second.front()] &&
+                r >= data_set._timestamps[ptr->second.front()]) {
+                return ptr->second.front();
+            } else {
+                return -1;
+            }
+        } else {
+            for (auto data_id : ptr->second) {
+                if (l <= data_set._timestamps[data_id] &&
+                    r >= data_set._timestamps[data_id] &&
+                    query_vec == data_set._vecs[data_id]) {
+                    return data_id;
+                }
+            }
+        }
+        return -1;
+    };
     auto s_q2 = std::chrono::system_clock::now();
     auto &q2_indexes = query_set._type_index[2];
     std::vector<int32_t> data_time_index(data_set.size());
@@ -257,6 +280,10 @@ void SolveQueryType0123(
                 }
             }
         } else {
+            auto query_id = GetRangeQueryId(query_vec, l, r);
+            if (query_id == -1) {
+                abort();
+            }
             result = whole_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r);
         }
 

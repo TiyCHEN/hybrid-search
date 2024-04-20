@@ -45,8 +45,8 @@ const int EF_CONSTRUCTION_Q0123 = 140;
 // const int HNSW_MERGE_THRASHOLD = 100000;
 
 const int EF_SEARCH_Q0 = 512 + 72;
-const int EF_SEARCH_Q1 = 612 + 64;
-const int EF_SEARCH_Q2 = 256;
+const int EF_SEARCH_Q1 = 512;
+const int EF_SEARCH_Q2 = 256 + 64;
 const int EF_SEARCH_Q3 = 256;
 
 const int HNSW_BUILD_THRASHOLD = 500;

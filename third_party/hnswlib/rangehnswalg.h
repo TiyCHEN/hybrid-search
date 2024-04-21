@@ -325,7 +325,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidate_set;
 
         dist_t lowerBound;
-        if (bare_bone_search || 
+        if (bare_bone_search ||
             (!isMarkedDeleted(ep_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id))))) {
             char* ep_data = getDataByInternalId(ep_id);
             dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
@@ -406,7 +406,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                                         _MM_HINT_T0);  ////////////////////////
 #endif
 
-                        if (bare_bone_search || 
+                        if (bare_bone_search ||
                             (!isMarkedDeleted(candidate_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(candidate_id))))) {
                             top_candidates.emplace(dist, candidate_id);
                             if (!bare_bone_search && stop_condition) {
@@ -965,7 +965,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     std::vector<data_t> getDataByLabel(labeltype label) const {
         // lock all operations with element by label
         std::unique_lock <std::mutex> lock_label(getLabelOpMutex(label));
-        
+
         std::unique_lock <std::mutex> lock_table(label_lookup_lock);
         auto search = label_lookup_.find(label);
         if (search == label_lookup_.end() || isMarkedDeleted(search->second)) {
@@ -1027,7 +1027,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     /*
     * Removes the deleted mark of the node, does NOT really change the current graph.
-    * 
+    *
     * Note: the method is not safe to use when replacement of deleted elements is enabled,
     *  because elements marked as deleted can be completely removed by addPoint
     */
@@ -1420,10 +1420,10 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r, BaseFilterFunctor* isIdAllowed = nullptr) {
+    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r, size_t ef = -1, BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
-
+        if (ef == -1) ef = ef_;
         tableint currObj = enterpoint_node_;
         dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
         for (int level = maxlevel_; level > 0; level--) {
@@ -1455,7 +1455,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         top_candidates = searchBaseLayerSTWithRange<false>(
-                currObj, query_data, std::max(ef_, k), l, r, isIdAllowed);
+                currObj, query_data, std::max(ef, k), l, r, isIdAllowed);
 
         while (top_candidates.size() > k) {
             top_candidates.pop();
@@ -1471,10 +1471,10 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnn(const void *query_data, size_t k, BaseFilterFunctor* isIdAllowed = nullptr) {
+    searchKnn(const void *query_data, size_t k, size_t ef = -1, BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
-        
+        if (ef == -1) ef = ef_;
         tableint currObj = enterpoint_node_;
         dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
         for (int level = maxlevel_; level > 0; level--) {
@@ -1506,7 +1506,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         top_candidates = searchBaseLayerST<false>(
-                currObj, query_data, std::max(ef_, k), isIdAllowed);
+                currObj, query_data, std::max(ef, k), isIdAllowed);
 
         while (top_candidates.size() > k) {
             top_candidates.pop();
@@ -1526,7 +1526,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         const void *query_data,
         BaseSearchStopCondition<dist_t>& stop_condition,
         BaseFilterFunctor* isIdAllowed = nullptr) const {
-        
+
         std::vector<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
 

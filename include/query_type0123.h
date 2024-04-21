@@ -196,8 +196,8 @@ void SolveQueryType0123(
 
     #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
     for (size_t i = 0; i < data_time_index.size(); i++) {
-        if (i + 1 < data_time_index.size()) {
-            whole_hnsw->addRangeEdge(data_time_index[i], data_time_index[i + 1]);
+        for (int j = 1; j <= 7 && i + (1 << j) < data_time_index.size(); j++) {
+            whole_hnsw->addRangeEdge(data_time_index[i], data_time_index[i + (1 << j)]);
         }
     }
 

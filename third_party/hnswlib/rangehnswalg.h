@@ -98,7 +98,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         size_t M = 16,
         size_t ef_construction = 200,
         size_t random_seed = 100,
-        size_t rangeM = 4,
+        size_t rangeM = 32,
         bool allow_replace_deleted = false)
         : label_op_locks_(MAX_LABEL_OPERATION_LOCKS),
             link_list_locks_(max_elements),
@@ -541,11 +541,13 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                 candidate_ids.push_back(candidate_id);
             }
 
-            for (int candidate_id : candidate_ids) {
+            for (int j = 0; j < candidate_ids.size(); j++) {
+                int candidate_id = candidate_ids[j];
 #ifdef USE_SSE
-//                _mm_prefetch((char *) (visited_array + *(data + j + 1)), _MM_HINT_T0);
-//                _mm_prefetch(data_level0_memory_ + (*(data + j + 1)) * size_data_per_element_ + offsetData_,
-//                                _MM_HINT_T0);  ////////////
+                if (j + 1 < candidate_ids.size()) {
+                    _mm_prefetch((char *) (visited_array + candidate_ids[j + 1]), _MM_HINT_T0);
+                    _mm_prefetch(data_level0_memory_ + candidate_ids[j + 1] * size_data_per_element_ + offsetData_, _MM_HINT_T0);  ////////////
+                }
 #endif
                 if (!(visited_array[candidate_id] == visited_array_tag)) {
                     visited_array[candidate_id] = visited_array_tag;
@@ -557,7 +559,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     if (!bare_bone_search && stop_condition) {
                         flag_consider_candidate = stop_condition->should_consider_candidate(dist, lowerBound);
                     } else {
-                        flag_consider_candidate = top_candidates.size() < ef || lowerBound > dist;
+                        flag_consider_candidate = (top_candidates.size() < ef || lowerBound > dist) && isInRange(candidate_id, l, r);
                     }
 
                     if (flag_consider_candidate) {
@@ -1333,6 +1335,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         linklistsizeint *ll_cur = get_range_linklist0(a);
         auto cnt = getListCount(ll_cur);
         if (cnt >= rangeM_) {
+            std::cout << "cnt: " << cnt << '\n';
             std::runtime_error("PANIC: add range edge over rangeM_ size!");
         }
         setListCount(ll_cur, cnt + 1);

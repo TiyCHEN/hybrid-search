@@ -537,8 +537,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
             for (size_t j = 1; j <= range_size; j++) {
                 int candidate_id = range_link_list[j];
-//                std::cout << "count size: " << range_size << ", candidate id: " << candidate_id << '\n';
-                candidate_ids.push_back(candidate_id);
+                if (isInRange(candidate_id, l, r)) {
+                    candidate_ids.push_back(candidate_id);
+                }
             }
 
             for (int j = 0; j < candidate_ids.size(); j++) {
@@ -559,7 +560,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     if (!bare_bone_search && stop_condition) {
                         flag_consider_candidate = stop_condition->should_consider_candidate(dist, lowerBound);
                     } else {
-                        flag_consider_candidate = (top_candidates.size() < ef || lowerBound > dist) && isInRange(candidate_id, l, r);
+//                        flag_consider_candidate = (top_candidates.size() < ef || lowerBound > dist) && isInRange(candidate_id, l, r);
+                        flag_consider_candidate = (top_candidates.size() < ef || lowerBound > dist);
                     }
 
                     if (flag_consider_candidate) {
@@ -1337,10 +1339,11 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         if (cnt >= rangeM_) {
             std::cout << "cnt: " << cnt << '\n';
             std::runtime_error("PANIC: add range edge over rangeM_ size!");
+        } else {
+            setListCount(ll_cur, cnt + 1);
+            tableint *data = (tableint *) (ll_cur + 1);
+            data[cnt] = b;
         }
-        setListCount(ll_cur, cnt + 1);
-        tableint *data = (tableint *) (ll_cur + 1);
-        data[cnt] = b;
     }
 
     void addRangeEdge(labeltype label1, labeltype label2) {

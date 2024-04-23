@@ -158,7 +158,7 @@ void SolveQueryType0123(
                     }
                 }
             } else {
-                result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r, 128 + (256.0 + 128) / data_label_index[label].size() * range_cnt);
+                result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r, 144 + (512.0 + 128 + 64) / data_label_index[label].size() * range_cnt);
             }
         }
 
@@ -257,7 +257,7 @@ void SolveQueryType0123(
                 }
             }
         } else {
-            result = whole_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r, 128 + (512.0 + 128) / data_set.size() * range_cnt);
+            result = whole_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r, 144 + (512.0 + 512 + 96) / data_set.size() * range_cnt);
         }
         while (knn.size() < K) {
             if (result.empty()) {

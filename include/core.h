@@ -43,9 +43,9 @@ const int EF_CONSTRUCTION_Q0123 = 140;
 
 // const int HNSW_MERGE_THRASHOLD = 100000;
 
-const int EF_SEARCH_Q0 = 512 + 72;
-const int EF_SEARCH_Q1 = 512 + 64;
-const int EF_SEARCH_Q2 = 256 + 64;
+const int EF_SEARCH_Q0 = 512 + 256 + 32;
+const int EF_SEARCH_Q1 = 512+64;
+const int EF_SEARCH_Q2 = 256;
 const int EF_SEARCH_Q3 = 256;
 
 const int HNSW_BUILD_THRASHOLD = 500;
@@ -55,7 +55,7 @@ const int RANGE_BF_THRASHOLD_Q3 = 35000;
 
 // change result state here
 // 0bXXXX, X = 0(close) or 1(open)
-#define RESULT_STATE 0b1111
+#define RESULT_STATE 0b0010
 
 #if !(RESULT_STATE >> 3 & 1)
 #define CLOSE_RESULT_Q0

@@ -1,8 +1,6 @@
 #include "io.h"
 #include "util.h"
 #include "data_format.h"
-#include "query_type02.h"
-#include "query_type13.h"
 #include "query_type0123.h"
 
 int main(int argc, char** argv) {
@@ -34,12 +32,6 @@ int main(int argc, char** argv) {
     for (auto& knns : knn_results) {
         knns.reserve(K);
     }
-
-    // // solve query type 0 & 2
-    // SolveQueryType02(data_set, query_set, knn_results);
-
-    // // solve query type 1 & 3
-    // SolveQueryType13(data_set, query_set, knn_results);
 
     SolveQueryType0123(data_set, query_set, knn_results);
 

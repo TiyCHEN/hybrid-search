@@ -1,13 +1,7 @@
-/**
- *  Example code for IO, read binary data vectors and save KNNs to path.
- *
- */
-
 #pragma once
 #include "core.h"
 #include "data_format.h"
 
-/// "output.bin" for evaluation
 void SaveKNN(const std::vector<std::vector<uint32_t>>& knns,
              const std::string& path = "output.bin") {
     int flag = -1;

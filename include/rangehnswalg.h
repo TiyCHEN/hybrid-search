@@ -1,7 +1,5 @@
 #pragma once
 
-#include "visited_list_pool.h"
-#include "hnswlib.h"
 #include <atomic>
 #include <random>
 #include <stdlib.h>
@@ -9,6 +7,9 @@
 #include <unordered_set>
 #include <list>
 #include <memory>
+
+#include "hnswlib/visited_list_pool.h"
+#include "hnswlib/hnswlib.h"
 
 namespace base_hnsw {
 typedef unsigned int tableint;

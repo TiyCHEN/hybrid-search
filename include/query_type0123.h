@@ -3,7 +3,7 @@
 #include "core.h"
 #include "util.h"
 #include "data_format.h"
-#include "hnswlib/rangehnswalg.h"
+#include "rangehnswalg.h"
 
 void SolveQueryType0123(
     DataSet& data_set,
@@ -12,7 +12,6 @@ void SolveQueryType0123(
     auto& data_label_index = data_set._label_index;
     // build index
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
-    // build hnsw for large label vecs
     auto s_index13 = std::chrono::system_clock::now();
     int32_t biggest_label = -1;
     size_t biggest_label_size = 0;
@@ -22,6 +21,7 @@ void SolveQueryType0123(
             biggest_label = label;
         }
     }
+    // build hnsw for large label vecs
     for (auto& [label, index] : data_label_index) {
         if (index.size() >= HNSW_BUILD_THRASHOLD) {
             base_hnsw::L2Space space(VEC_DIMENSION);
@@ -39,7 +39,7 @@ void SolveQueryType0123(
         }
     }
     auto e_index13 = std::chrono::system_clock::now();
-    std::cout << "I13: " << time_cost(s_index13, e_index13) << "\n";
+    std::cout << "I13: " << time_cost(s_index13, e_index13) << " (ms)\n";
 
     // solve query1 (Filter-ANN)
     for (auto &[_, hnsw] : label_hnsw) {
@@ -86,12 +86,9 @@ void SolveQueryType0123(
             knn.push_back(result.top().second);
             result.pop();
         }
-        #if defined(CLOSE_RESULT_Q1)
-        std::fill(knn.begin(), knn.end(), I32_MAX);
-        #endif
     }
     auto e_q1 = std::chrono::system_clock::now();
-    std::cout << "Q1:  " << time_cost(s_q1, e_q1) << "\n";
+    std::cout << "Q1:  " << time_cost(s_q1, e_q1) << " (ms)\n";
 
     // solve query3 (Filter-Range-ANN)
     for (auto &[_, hnsw] : label_hnsw) {
@@ -170,12 +167,9 @@ void SolveQueryType0123(
             knn.push_back(result.top().second);
             result.pop();
         }
-        #if defined(CLOSE_RESULT_Q3)
-        std::fill(knn.begin(), knn.end(), I32_MAX);
-        #endif
     }
     auto e_q3 = std::chrono::system_clock::now();
-    std::cout << "Q3:  " << time_cost(s_q3, e_q3) << "\n";
+    std::cout << "Q3:  " << time_cost(s_q3, e_q3) << " (ms)\n";
 
 
     // build index02
@@ -189,7 +183,7 @@ void SolveQueryType0123(
         }
     }
     auto e_index02 = std::chrono::system_clock::now();
-    std::cout << "I02: " << time_cost(s_index02, e_index02) << "\n";
+    std::cout << "I02: " << time_cost(s_index02, e_index02) << " (ms)\n";
 
     // solve query type0 (ANN)
     whole_hnsw->setEf(EF_SEARCH_Q0);
@@ -210,12 +204,9 @@ void SolveQueryType0123(
             knn.push_back(result.top().second);
             result.pop();
         }
-        #if defined(CLOSE_RESULT_Q0)
-        std::fill(knn.begin(), knn.end(), I32_MAX);
-        #endif
     }
     auto e_q0 = std::chrono::system_clock::now();
-    std::cout << "Q0:  " << time_cost(s_q0, e_q0) << "\n";
+    std::cout << "Q0:  " << time_cost(s_q0, e_q0) << " (ms)\n";
 
     // solve query type2 (Range-ANN)
     whole_hnsw->setEf(EF_SEARCH_Q2);
@@ -267,10 +258,7 @@ void SolveQueryType0123(
             knn.push_back(result.top().second);
             result.pop();
         }
-        #if defined(CLOSE_RESULT_Q2)
-        std::fill(knn.begin(), knn.end(), I32_MAX);
-        #endif
     }
     auto e_q2 = std::chrono::system_clock::now();
-    std::cout << "Q2:  " << time_cost(s_q2, e_q2) << "\n";
+    std::cout << "Q2:  " << time_cost(s_q2, e_q2) << " (ms)\n";
 }

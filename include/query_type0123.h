@@ -39,7 +39,7 @@ void SolveQueryType0123(
         }
     }
     auto e_index13 = std::chrono::system_clock::now();
-    std::cout << "build index 13 cost: " << time_cost(s_index13, e_index13) << " (ms)\n";
+    std::cout << "I13: " << time_cost(s_index13, e_index13) << "\n";
 
     // solve query1 (Filter-ANN)
     for (auto &[_, hnsw] : label_hnsw) {
@@ -91,7 +91,7 @@ void SolveQueryType0123(
         #endif
     }
     auto e_q1 = std::chrono::system_clock::now();
-    std::cout << "search query 1 cost: " << time_cost(s_q1, e_q1) << " (ms)\n";
+    std::cout << "Q1:  " << time_cost(s_q1, e_q1) << "\n";
 
     // solve query3 (Filter-Range-ANN)
     for (auto &[_, hnsw] : label_hnsw) {
@@ -158,7 +158,7 @@ void SolveQueryType0123(
                     }
                 }
             } else {
-                result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r, 128 + (256.0 + 128) / data_label_index[label].size() * range_cnt);
+                result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r, 144 + (512.0 + 128 + 64) / data_label_index[label].size() * range_cnt);
             }
         }
 
@@ -175,7 +175,7 @@ void SolveQueryType0123(
         #endif
     }
     auto e_q3 = std::chrono::system_clock::now();
-    std::cout << "search query 3 cost: " << time_cost(s_q3, e_q3) << " (ms)\n";
+    std::cout << "Q3:  " << time_cost(s_q3, e_q3) << "\n";
 
 
     // build index02
@@ -189,7 +189,7 @@ void SolveQueryType0123(
         }
     }
     auto e_index02 = std::chrono::system_clock::now();
-    std::cout << "build index 02 cost: " << time_cost(s_index02, e_index02) << " (ms)\n";
+    std::cout << "I02: " << time_cost(s_index02, e_index02) << "\n";
 
     // solve query type0 (ANN)
     whole_hnsw->setEf(EF_SEARCH_Q0);
@@ -215,7 +215,7 @@ void SolveQueryType0123(
         #endif
     }
     auto e_q0 = std::chrono::system_clock::now();
-    std::cout << "search query 0 cost: " << time_cost(s_q0, e_q0) << " (ms)\n";
+    std::cout << "Q0:  " << time_cost(s_q0, e_q0) << "\n";
 
     // solve query type2 (Range-ANN)
     whole_hnsw->setEf(EF_SEARCH_Q2);
@@ -257,7 +257,7 @@ void SolveQueryType0123(
                 }
             }
         } else {
-            result = whole_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r, 128 + (512.0 + 128) / data_set.size() * range_cnt);
+            result = whole_hnsw->searchKnnWithRange(query_vec.data(), 100, l, r, 128 + (512.0 + 256 + 128) / data_set.size() * range_cnt);
         }
         while (knn.size() < K) {
             if (result.empty()) {
@@ -272,5 +272,5 @@ void SolveQueryType0123(
         #endif
     }
     auto e_q2 = std::chrono::system_clock::now();
-    std::cout << "search query 2 cost: " << time_cost(s_q2, e_q2) << " (ms)\n";
+    std::cout << "Q2:  " << time_cost(s_q2, e_q2) << "\n";
 }

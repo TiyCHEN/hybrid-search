@@ -43,7 +43,7 @@ endif()
 # add_definitions(-lboost -ltcmalloc_minimal)
 
 add_executable(main main.cc)
-add_executable(test_recall test/test_recall.cc)
+# add_executable(test_recall test/test_recall.cc)
 
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-mavx" COMPILER_SUPPORTS_MAVX)

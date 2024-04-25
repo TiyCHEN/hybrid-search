@@ -40,7 +40,6 @@ void SolveQueryType0123(
     }
     auto e_index13 = std::chrono::system_clock::now();
     std::cout << "I13: " << time_cost(s_index13, e_index13) << " (ms)\n";
-
     // solve query1 (Filter-ANN)
     for (auto &[_, hnsw] : label_hnsw) {
         hnsw->setEf(EF_SEARCH_Q1);

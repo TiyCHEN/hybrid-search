@@ -2,6 +2,7 @@
 #include "util.h"
 #include "data_format.h"
 #include "query_type0123.h"
+#include "query_type02.h"
 
 int main(int argc, char** argv) {
     std::string source_path = "../data/dummy-data.bin";
@@ -32,8 +33,8 @@ int main(int argc, char** argv) {
     for (auto& knns : knn_results) {
         knns.reserve(K);
     }
-
-    SolveQueryType0123(data_set, query_set, knn_results);
+    SolveQueryType02(data_set, query_set, knn_results);
+    // SolveQueryType0123(data_set, query_set, knn_results);
 
     // save the results
     SaveKNN(knn_results, knn_save_path);

@@ -24,7 +24,8 @@ void Recall(std::vector<std::vector<uint32_t>>& knns,
     float recall = static_cast<float>(hit) / (N * K);
     std::cout << "Overall Recall: " << recall << std::endl;
 
-    for (int i = 0; i < 4; i++) {
+    std::ofstream file("statistic.txt", std::ios::app);
+    for (int i = 2; i < 3; i++) {
         auto cur_query_index = query_set._type_index[i];
         int hit = 0;
         for (auto index : cur_query_index) {
@@ -37,11 +38,13 @@ void Recall(std::vector<std::vector<uint32_t>>& knns,
                                   truth_knn.end(),
                                   std::back_inserter(intersection));
             hit += static_cast<int>(intersection.size());
+            file << static_cast<int>(intersection.size()) << "\n";
         }
         float recall = static_cast<float>(hit) / (cur_query_index.size() * K);
         std::cout << "Recall for Query Type " << i << ": " << recall
                   << std::endl;
     }
+    file.close();
 }
 
 // only for 1M data now

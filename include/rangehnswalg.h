@@ -51,8 +51,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     char *data_level0_memory_{nullptr};
     char **linkLists_{nullptr};
     std::vector<int> element_levels_;  // keeps level of each element
-    mutable std::mutex timestamp_lock;
-    std::unordered_map<tableint, float> element_timestamp_;
+    std::shared_ptr<std::vector<float>> element_timestamp_;
 
     size_t data_size_{0};
 
@@ -60,7 +59,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     void *dist_func_param_{nullptr};
 
     mutable std::mutex label_lookup_lock;  // lock for label_lookup_
-    std::unordered_map<labeltype, tableint> label_lookup_;
+    std::shared_ptr<std::unordered_map<labeltype, tableint>> label_lookup_;
 
     std::default_random_engine level_generator_;
     std::default_random_engine update_probability_generator_;
@@ -100,12 +99,18 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             link_list_locks_(max_elements),
             element_levels_(max_elements),
             allow_replace_deleted_(allow_replace_deleted) {
+        if (element_timestamp_ == nullptr) {
+            element_timestamp_ = std::make_shared<std::vector<float>>(std::vector<float>(max_elements));
+        }
+        if (label_lookup_ == nullptr) {
+            label_lookup_ = std::make_shared<std::unordered_map<labeltype, tableint>>();
+            label_lookup_->reserve(max_elements);
+        }
         max_elements_ = max_elements;
         num_deleted_ = 0;
         data_size_ = s->get_data_size();
         fstdistfunc_ = s->get_dist_func();
         dist_func_param_ = s->get_dist_func_param();
-        // std::cout << "Data size: " << data_size_ << std::endl;
         if ( M <= 10000 ) {
             M_ = M;
         } else {
@@ -145,6 +150,56 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         size_links_per_element_ = maxM_ * sizeof(tableint) + sizeof(linklistsizeint);
         mult_ = 1 / log(1.0 * M_);
         revSize_ = 1.0 / mult_;
+    }
+
+    RangeHierarchicalNSW(const RangeHierarchicalNSW<dist_t>& rhs) {
+        offsetLevel0_ = rhs.offsetLevel0_;
+        max_elements_ = rhs.max_elements_;
+        cur_element_count.store(rhs.cur_element_count.load());
+
+        size_data_per_element_ = rhs.size_data_per_element_;
+        label_offset_ = rhs.label_offset_;
+        offsetData_ = rhs.offsetData_;
+        maxlevel_ = rhs.maxlevel_;
+        enterpoint_node_ = rhs.enterpoint_node_;
+
+        maxM_ = rhs.maxM_;
+        maxM0_ = rhs.maxM0_;
+        M_ = rhs.M_;
+        mult_ = rhs.mult_;
+        ef_construction_ = rhs.ef_construction_;
+
+        data_size_ = rhs.data_size_;
+        fstdistfunc_ = rhs.fstdistfunc_;
+        dist_func_param_ = rhs.dist_func_param_;
+
+        data_level0_memory_ = (char *) malloc(max_elements_ * size_data_per_element_);
+        memcpy(data_level0_memory_, rhs.data_level0_memory_, cur_element_count * size_data_per_element_);
+        size_links_per_element_ = maxM_ * sizeof(tableint) + sizeof(linklistsizeint);
+        size_links_level0_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);
+        std::vector<std::mutex>(max_elements_).swap(link_list_locks_);
+        std::vector<std::mutex>(MAX_LABEL_OPERATION_LOCKS).swap(label_op_locks_);
+        visited_list_pool_.reset(new VisitedListPool(1, max_elements_));
+        linkLists_ = (char **) malloc(sizeof(void *) * max_elements_);
+        if (linkLists_ == nullptr)
+            throw std::runtime_error("Not enough memory: loadIndex failed to allocate linklists");
+        element_levels_ = std::vector<int>(max_elements_);
+        revSize_ = 1.0 / mult_;
+        ef_ = rhs.ef_;
+        label_lookup_ = rhs.label_lookup_;
+        element_timestamp_ = rhs.element_timestamp_;
+        #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+        for (size_t i = 0; i < cur_element_count; i++) {
+            unsigned int linkListSize = rhs.element_levels_[i] > 0 ? rhs.size_links_per_element_ * rhs.element_levels_[i] : 0;
+            if (linkListSize == 0) {
+                element_levels_[i] = 0;
+                linkLists_[i] = nullptr;
+            } else {
+                element_levels_[i] = linkListSize / size_links_per_element_;
+                linkLists_[i] = (char *) malloc(linkListSize);
+                memcpy(linkLists_[i], rhs.linkLists_[i], linkListSize);
+            }
+        }
     }
 
 
@@ -204,7 +259,6 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     inline char *getDataByInternalId(tableint internal_id) const {
-        // std::cout << internal_id << " " << size_data_per_element_ << std::endl;
         return (data_level0_memory_ + internal_id * size_data_per_element_ + offsetData_);
     }
 
@@ -968,8 +1022,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::unique_lock <std::mutex> lock_label(getLabelOpMutex(label));
 
         std::unique_lock <std::mutex> lock_table(label_lookup_lock);
-        auto search = label_lookup_.find(label);
-        if (search == label_lookup_.end() || isMarkedDeleted(search->second)) {
+        auto search = label_lookup_->find(label);
+        if (search == label_lookup_->end() || isMarkedDeleted(search->second)) {
             throw std::runtime_error("Label not found");
         }
         tableint internalId = search->second;
@@ -995,8 +1049,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::unique_lock <std::mutex> lock_label(getLabelOpMutex(label));
 
         std::unique_lock <std::mutex> lock_table(label_lookup_lock);
-        auto search = label_lookup_.find(label);
-        if (search == label_lookup_.end()) {
+        auto search = label_lookup_->find(label);
+        if (search == label_lookup_->end()) {
             throw std::runtime_error("Label not found");
         }
         tableint internalId = search->second;
@@ -1037,8 +1091,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::unique_lock <std::mutex> lock_label(getLabelOpMutex(label));
 
         std::unique_lock <std::mutex> lock_table(label_lookup_lock);
-        auto search = label_lookup_.find(label);
-        if (search == label_lookup_.end()) {
+        auto search = label_lookup_->find(label);
+        if (search == label_lookup_->end()) {
             throw std::runtime_error("Label not found");
         }
         tableint internalId = search->second;
@@ -1078,9 +1132,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     bool isInRange(tableint internalId, const float l, const float r) {
-//        timestamp_lock.lock();
-        const float timestamp = element_timestamp_[internalId];
-//        timestamp_lock.unlock();
+        const float timestamp = (*element_timestamp_)[internalId];
         // fixme: float cmp should use eps
         return l <= timestamp && timestamp <= r;
     }
@@ -1131,8 +1183,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             setExternalLabel(internal_id_replaced, label);
 
             std::unique_lock <std::mutex> lock_table(label_lookup_lock);
-            label_lookup_.erase(label_replaced);
-            label_lookup_[label] = internal_id_replaced;
+            label_lookup_->erase(label_replaced);
+            (*label_lookup_)[label] = internal_id_replaced;
             lock_table.unlock();
 
             unmarkDeletedInternal(internal_id_replaced);
@@ -1305,8 +1357,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             // Checking if the element with the same label already exists
             // if so, updating it *instead* of creating a new element.
             std::unique_lock <std::mutex> lock_table(label_lookup_lock);
-            auto search = label_lookup_.find(label);
-            if (search != label_lookup_.end()) {
+            auto search = label_lookup_->find(label);
+            if (search != label_lookup_->end()) {
                 tableint existingInternalId = search->second;
                 if (allow_replace_deleted_) {
                     if (isMarkedDeleted(existingInternalId)) {
@@ -1329,19 +1381,15 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
             cur_c = cur_element_count;
             cur_element_count++;
-            // std::cout<< cur_element_count << std::endl;
-            label_lookup_[label] = cur_c;
+            (*label_lookup_)[label] = cur_c;
         }
 
         std::unique_lock <std::mutex> lock_el(link_list_locks_[cur_c]);
         int curlevel = getRandomLevel(mult_);
         if (level > 0)
             curlevel = level;
-
         element_levels_[cur_c] = curlevel;
-        timestamp_lock.lock();
-        element_timestamp_[cur_c] = timestamp;
-        timestamp_lock.unlock();
+        (*element_timestamp_)[cur_c] = timestamp;
 
         std::unique_lock <std::mutex> templock(global);
         int maxlevelcopy = maxlevel_;
@@ -1421,10 +1469,10 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r, size_t ef = -1, BaseFilterFunctor* isIdAllowed = nullptr) {
+    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r, size_t ef = 0, BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
-        if (ef == -1) ef = ef_;
+        if (ef == 0) ef = ef_;
         tableint currObj = enterpoint_node_;
         dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
         for (int level = maxlevel_; level > 0; level--) {
@@ -1466,16 +1514,15 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             result.push(std::pair<dist_t, labeltype>(rez.first, getExternalLabel(rez.second)));
             top_candidates.pop();
         }
-//         std::cout << result.size() << std::endl;
         return result;
     }
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnn(const void *query_data, size_t k, size_t ef = -1, BaseFilterFunctor* isIdAllowed = nullptr) {
+    searchKnn(const void *query_data, size_t k, size_t ef = 0, BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
-        if (ef == -1) ef = ef_;
+        if (ef == 0) ef = ef_;
         tableint currObj = enterpoint_node_;
         dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
         for (int level = maxlevel_; level > 0; level--) {
@@ -1517,7 +1564,6 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             result.push(std::pair<dist_t, labeltype>(rez.first, getExternalLabel(rez.second)));
             top_candidates.pop();
         }
-//         std::cout << result.size() << std::endl;
         return result;
     }
 
@@ -1533,7 +1579,6 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         tableint currObj = enterpoint_node_;
 
-        // std::cout << currObj << std::endl;
         dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
 
         for (int level = maxlevel_; level > 0; level--) {

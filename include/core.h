@@ -34,19 +34,46 @@ const uint32_t QUERY_TYPE_SIZE = 4;
 
 const int CHUNK_SIZE = 64;
 
-const int M_Q02 = 24;
+const int M_Q02 = 32;
 const int EF_CONSTRUCTION_Q02 = 140;
-const int M_Q13 = 24;
+const int M_Q13 = 32;
 const int EF_CONSTRUCTION_Q13 = 140;
-const int M_Q0123 = 24;
+const int M_Q0123 = 32;
 const int EF_CONSTRUCTION_Q0123 = 140;
 
-const int EF_SEARCH_Q0 = 512 + 256 + 32;
-const int EF_SEARCH_Q1 = 512 + 64;
-const int EF_SEARCH_Q2 = 256 + 64;
-const int EF_SEARCH_Q3 = 256;
+// EF_SEARCH
+const int EFS_Q0_BASE = 1024;
+const int EFS_Q1_BASE = 512;
+const double EFS_Q1_K = 1024;
+const int EFS_Q2_BASE = 144;
+const double EFS_Q2_K = 1024;
+const int EFS_Q3_BASE = 144;
+const double EFS_Q3_K = 512 + 128 + 64;
 
-const int HNSW_BUILD_THRASHOLD = 500;
+const std::vector<double> SEGEMENTS_Q2 = {0.2, 0.3, 0.4, 0.5, 0.8, 0.9, 1};
 
-const int RANGE_BF_THRASHOLD_Q2 = 55000;
-const int RANGE_BF_THRASHOLD_Q3 = 35000;
+const std::vector<double> SEGEMENTS_Q3 = {0.3, 0.5, 0.8, 0.9, 1};
+
+const int HNSW_BUILD_THRESHOLD = 500;
+
+const int HNSW_PARTIAL_BUILD_THRESHOLD = 500000;
+
+const int RANGE_BF_THRESHOLD_Q2 = 55000;
+const int RANGE_BF_THRESHOLD_Q3 = 35000;
+
+// change result state here
+// 0bXXXX, X = 0(close) or 1(open)
+#define RESULT_STATE 0b1111
+
+#if !(RESULT_STATE >> 3 & 1)
+#define CLOSE_RESULT_Q0
+#endif
+#if !(RESULT_STATE >> 2 & 1)
+#define CLOSE_RESULT_Q1
+#endif
+#if !(RESULT_STATE >> 1 & 1)
+#define CLOSE_RESULT_Q2
+#endif
+#if !(RESULT_STATE >> 0 & 1)
+#define CLOSE_RESULT_Q3
+#endif

@@ -34,11 +34,11 @@ const uint32_t QUERY_TYPE_SIZE = 4;
 
 const int CHUNK_SIZE = 64;
 
-const int M_Q02 = 32;
+const int M_Q02 = 24;
 const int EF_CONSTRUCTION_Q02 = 140;
-const int M_Q13 = 32;
+const int M_Q13 = 24;
 const int EF_CONSTRUCTION_Q13 = 140;
-const int M_Q0123 = 32;
+const int M_Q0123 = 24;
 const int EF_CONSTRUCTION_Q0123 = 140;
 
 // EF_SEARCH

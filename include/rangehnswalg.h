@@ -147,7 +147,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         revSize_ = 1.0 / mult_;
     }
 
-    RangeHierarchicalNSW(const RangeHierarchicalNSW& rhs) {
+    RangeHierarchicalNSW(const RangeHierarchicalNSW<dist_t>& rhs) {
         offsetLevel0_ = rhs.offsetLevel0_;
         max_elements_ = rhs.max_elements_;
         cur_element_count.store(rhs.cur_element_count.load());
@@ -180,10 +180,10 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             throw std::runtime_error("Not enough memory: loadIndex failed to allocate linklists");
         element_levels_ = std::vector<int>(max_elements_);
         revSize_ = 1.0 / mult_;
-        ef_ = 10;
+        // ef_ = 10;
         for (size_t i = 0; i < cur_element_count; i++) {
             label_lookup_[getExternalLabel(i)] = i;
-            unsigned int linkListSize = rhs.element_levels_[i] > 0 ? rhs.size_data_per_element_ * rhs.element_levels_[i] : 0;
+            unsigned int linkListSize = rhs.element_levels_[i] > 0 ? rhs.size_links_per_element_ * rhs.element_levels_[i] : 0;
 
             if (linkListSize == 0) {
                 element_levels_[i] = 0;
@@ -194,6 +194,41 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                 memcpy(linkLists_[i], rhs.linkLists_[i], linkListSize);
             }
         }
+    }
+
+    void check_linklist(std::string filename) {
+        // std::cerr << "check_linklist" << std::endl;
+        std::ofstream file(filename);
+        // std::srand(std::time(nullptr));
+        // std::vector<int> numbers(10000);
+        // for (int i = 0; i < 10000; ++i) {
+        //     numbers[i] = i + 1;
+        // }
+        // std::random_shuffle(numbers.begin(), numbers.end());
+        // std::vector<int> random_numbers(numbers.begin(), numbers.begin() + 10000);
+        // int ttt = 0;
+        for (int t = 0; t < max_elements_; ++t) {
+            int i = t;
+            // int i = random_numbers[t];
+            int *data = (int *) get_linklist0(i);
+            size_t size = getListCount((linklistsizeint*)data);
+            // std::set<tableint> visit;
+            // std::vector<tableint> vec;
+            // level - 1
+            for (size_t j = 0; j < size; j++) {
+                // ttt++;
+                int candidate_id = *(data + j);
+                file << candidate_id << " ";
+                // if (visit.find(candidate_id) != visit.end()) {
+                //     continue;
+                // }
+                // visit.emplace(candidate_id);
+                // vec.emplace_back(candidate_id);
+                // file << std::abs(element_timestamp_[i] - element_timestamp_[candidate_id]) << " ";
+            }
+            file << "\n";
+        }
+        file.close();
     }
 
     ~RangeHierarchicalNSW() {

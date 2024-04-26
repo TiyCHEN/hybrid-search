@@ -83,7 +83,7 @@ void SolveQueryType02(
             for (int j = 0; j < partial_range.size(); ++j) {
                 if (partial_range[j].first <= st_pos && partial_range[j].second >= en_pos) {
                     int sz = partial_range[j].second - partial_range[j].first + 1;
-                    result = partial_hnsw[j]->searchKnnWithRange(query_vec.data(), 100, l, r, EFS_Q2_BASE + EFS_Q2_K / sz * range_cnt);
+                    result = partial_hnsw[j]->searchKnnWithRange(query_vec.data(), 100, l, r, EFS_Q2_BASE + EFS_Q2_K * range_cnt / sz);
                     break;
                 }
             }

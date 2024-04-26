@@ -43,14 +43,14 @@ const int EF_CONSTRUCTION_Q0123 = 140;
 
 // EF_SEARCH
 const int EFS_Q0_BASE = 1024;
-const int EFS_Q1_BASE = 512;
+const int EFS_Q1_BASE = 256 + 32;
 const double EFS_Q1_K = 1024;
 const int EFS_Q2_BASE = 144;
 const double EFS_Q2_K = 1024;
 const int EFS_Q3_BASE = 144;
 const double EFS_Q3_K = 512 + 128 + 64;
 
-const std::vector<double> SEGEMENTS_Q2 = {0.2, 0.3, 0.4, 0.5, 0.8, 0.9, 1};
+const std::vector<double> SEGEMENTS_Q2 = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1};
 
 const std::vector<double> SEGEMENTS_Q3 = {0.3, 0.5, 0.8, 0.9, 1};
 

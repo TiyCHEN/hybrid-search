@@ -58,59 +58,6 @@ void SolveQueryType13(
     auto e_index13 = std::chrono::system_clock::now();
     std::cout << "I13: " << time_cost(s_index13, e_index13) << " (ms)\n";
 
-    // solve query1 (Filter-ANN)
-    auto s_q1 = std::chrono::system_clock::now();
-    auto &q1_indexes = query_set._type_index[1];
-    #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
-    for (uint32_t i = 0; i < q1_indexes.size(); i++)  {
-        const auto& query = query_set._queries[q1_indexes[i]];
-        const int32_t label = query._label;
-        const auto& query_vec = query._vec;
-        auto& knn = knn_results[q1_indexes[i]];
-
-        if (!data_label_index.count(label)) {
-            while (knn.size() < K) {
-                knn.push_back(0);
-            }
-           continue;
-        }
-        std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        auto& index = data_label_index[label];
-        if (index.size() < HNSW_BUILD_THRESHOLD) {
-            for (auto id : index) {
-                #if defined(USE_AVX)
-                    float dist = space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
-                #else
-                    float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
-                #endif
-                result.push(std::make_pair(dist, id));
-                if (result.size() > K) {
-                    result.pop();
-                }
-            }
-        } else {
-            if (index.size() >= HNSW_PARTIAL_BUILD_THRESHOLD) {
-                result = label_partial_hnsw[label].back()->searchKnn(query_vec.data(), 100, EFS_Q1_BASE + EFS_Q1_K / data_set.size() * index.size());
-            } else {
-                result = label_hnsw[label]->searchKnn(query_vec.data(), 100, EFS_Q1_BASE + EFS_Q1_K / data_set.size() * index.size());
-            }
-        }
-
-        while (knn.size() < K) {
-            if (result.empty()) {
-                knn.push_back(0);
-                continue;
-            }
-            knn.push_back(result.top().second);
-            result.pop();
-        }
-        #if defined(CLOSE_RESULT_Q1)
-        std::fill(knn.begin(), knn.end(), I32_MAX);
-        #endif
-    }
-    auto e_q1 = std::chrono::system_clock::now();
-    std::cout << "Q1:  " << time_cost(s_q1, e_q1) << " (ms)\n";
-
     // solve query3 (Filter-Range-ANN)
     auto s_q3 = std::chrono::system_clock::now();
     auto &q3_indexes = query_set._type_index[3];
@@ -172,12 +119,13 @@ void SolveQueryType13(
                     for (int j = 0; j < label_partial_range[label].size(); ++j) {
                         if (label_partial_range[label][j] >= en_pos - 1) {
                             result = label_partial_hnsw[label][j]->searchKnnWithRange(query_vec.data(), 100, l, r,
-                                     EFS_Q3_BASE + EFS_Q3_K / label_partial_range[label][j] * range_cnt);
+                                     EFS_Q3_BASE + EFS_Q3_K * range_cnt / label_partial_range[label][j]);
                             break;
                         }
                     }
                 } else {
-                    result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r, EFS_Q3_BASE + EFS_Q3_K / index.size() * range_cnt);
+                    result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r,
+                             EFS_Q3_BASE + EFS_Q3_K * range_cnt / index.size());
                 }
             }
         }
@@ -196,4 +144,57 @@ void SolveQueryType13(
     }
     auto e_q3 = std::chrono::system_clock::now();
     std::cout << "Q3:  " << time_cost(s_q3, e_q3) << " (ms)\n";
+
+        // solve query1 (Filter-ANN)
+    auto s_q1 = std::chrono::system_clock::now();
+    auto &q1_indexes = query_set._type_index[1];
+    #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+    for (uint32_t i = 0; i < q1_indexes.size(); i++)  {
+        const auto& query = query_set._queries[q1_indexes[i]];
+        const int32_t label = query._label;
+        const auto& query_vec = query._vec;
+        auto& knn = knn_results[q1_indexes[i]];
+
+        if (!data_label_index.count(label)) {
+            while (knn.size() < K) {
+                knn.push_back(0);
+            }
+           continue;
+        }
+        std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
+        auto& index = data_label_index[label];
+        if (index.size() < HNSW_BUILD_THRESHOLD) {
+            for (auto id : index) {
+                #if defined(USE_AVX)
+                    float dist = space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
+                #else
+                    float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
+                #endif
+                result.push(std::make_pair(dist, id));
+                if (result.size() > K) {
+                    result.pop();
+                }
+            }
+        } else {
+            if (index.size() >= HNSW_PARTIAL_BUILD_THRESHOLD) {
+                result = label_partial_hnsw[label].back()->searchKnn(query_vec.data(), 100, EFS_Q1_BASE + EFS_Q1_K * std::sqrt(1.0 * index.size() / data_set.size()));
+            } else {
+                result = label_hnsw[label]->searchKnn(query_vec.data(), 100, EFS_Q1_BASE + EFS_Q1_K * std::sqrt(1.0 * index.size() / data_set.size()));
+            }
+        }
+
+        while (knn.size() < K) {
+            if (result.empty()) {
+                knn.push_back(0);
+                continue;
+            }
+            knn.push_back(result.top().second);
+            result.pop();
+        }
+        #if defined(CLOSE_RESULT_Q1)
+        std::fill(knn.begin(), knn.end(), I32_MAX);
+        #endif
+    }
+    auto e_q1 = std::chrono::system_clock::now();
+    std::cout << "Q1:  " << time_cost(s_q1, e_q1) << " (ms)\n";
 }

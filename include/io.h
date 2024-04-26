@@ -50,6 +50,7 @@ void ReadData(const std::string& file_path,
     auto& node_label_index = data_set._label_index;
     for (int32_t i = 0; i < N; ++i) {
         float label = *iter++;
+        data_set._labels[i] = label;
         data_set._timestamps[i] = *iter++;
         data_set._vecs[i].resize(num_dimensions - 2);
         memcpy(data_set._vecs[i].data(), iter, (num_dimensions - 2) * sizeof(float));

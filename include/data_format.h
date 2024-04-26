@@ -3,19 +3,20 @@
 #include "core.h"
 
 struct DataSet {
-    // std::vector<int32_t> _labels;
+    std::vector<int32_t> _labels;
     std::vector<float> _timestamps;
     std::vector<std::vector<float>> _vecs;
     std::unordered_map<int32_t, std::vector<int32_t>> _label_index;
 
     // functions
     void reserve(size_t size) {
-        // _labels.reserve(size);
+        _labels.reserve(size);
         _timestamps.reserve(size);
         _vecs.reserve(size);
     }
 
     void resize(size_t size) {
+        _labels.resize(size);
         _timestamps.resize(size);
         _vecs.resize(size);
     }

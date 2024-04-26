@@ -52,7 +52,9 @@ const double EFS_Q3_K = 1024;
 
 const std::vector<double> SEGEMENTS = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1};
 
-const int BF_THRESHOLD = 55000;
+const int BF_THRESHOLD_Q1 = 55000;
+const int BF_THRESHOLD_Q2 = 55000;
+const int BF_THRESHOLD_Q3 = 55000;
 
 // change result state here
 // 0bXXXX, X = 0(close) or 1(open)

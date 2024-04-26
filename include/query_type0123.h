@@ -93,7 +93,7 @@ void SolveQueryType0123(
         }
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
         auto& index = data_label_index[label];
-        if (index.size() < BF_THRESHOLD) {
+        if (index.size() < BF_THRESHOLD_Q1) {
             for (auto id : index) {
                 #if defined(USE_AVX)
                     float dist = space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
@@ -107,7 +107,7 @@ void SolveQueryType0123(
             }
         } else {
             result = partial_hnsw.back()->searchKnnWithAttribute(query_vec.data(), 100, label,
-                     EFS_Q1_BASE + EFS_Q1_K * std::sqrt(1.0 * index.size() / data_set.size()));
+                     EFS_Q1_BASE + EFS_Q1_K * index.size() / data_set.size());
         }
         while (knn.size() < K) {
             if (result.empty()) {
@@ -145,7 +145,7 @@ void SolveQueryType0123(
         int candidate_cnt = en_pos - st_pos;
 
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        if (candidate_cnt < BF_THRESHOLD) {
+        if (candidate_cnt < BF_THRESHOLD_Q2) {
             for (int j = st_pos; j < en_pos; ++j) {
                 auto id = data_time_index[j];
                 #if defined(USE_AVX)
@@ -210,7 +210,7 @@ void SolveQueryType0123(
             return data_set._timestamps[x] <= ti;
         }) - index.begin();
         int candidate_cnt = en_pos - st_pos;
-        if (candidate_cnt <= BF_THRESHOLD) {
+        if (candidate_cnt <= BF_THRESHOLD_Q3) {
             for (int j = st_pos; j < en_pos; ++j) {
                 auto id = index[j];
                 #if defined(USE_AVX)

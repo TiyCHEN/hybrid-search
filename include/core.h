@@ -48,15 +48,15 @@ const double EFS_Q1_K = 1024;
 const int EFS_Q2_BASE = 144;
 const double EFS_Q2_K = 1024;
 const int EFS_Q3_BASE = 144;
-const double EFS_Q3_K = 512 + 128 + 64;
+const double EFS_Q3_K = 1024;
 
-const std::vector<double> SEGEMENTS_Q2 = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1};
+const std::vector<double> SEGEMENTS_Q2 = {0.3, 0.4, 0.5, 0.8, 0.9, 1};
 
-const std::vector<double> SEGEMENTS_Q3 = {0.3, 0.5, 0.8, 0.9, 1};
+const std::vector<double> SEGEMENTS_Q3 = {0.3, 0.5, 0.8, 1};
 
 const int HNSW_BUILD_THRESHOLD = 500;
 
-const int HNSW_PARTIAL_BUILD_THRESHOLD = 500000;
+const int HNSW_PARTIAL_BUILD_THRESHOLD = 600000;
 
 const int RANGE_BF_THRESHOLD_Q2 = 55000;
 const int RANGE_BF_THRESHOLD_Q3 = 35000;

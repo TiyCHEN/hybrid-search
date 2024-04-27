@@ -48,7 +48,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     size_t size_links_level0_{0};
     size_t offsetData_{0}, offsetLevel0_{0}, label_offset_{ 0 };
 
-    char *data_level0_memory_{nullptr};
+    std::shared_ptr<std::vector<char>> data_level0_memory_;
+    // char *data_level0_memory_{nullptr};
     char **linkLists_{nullptr};
     std::vector<int> element_levels_;  // keeps level of each element
     std::shared_ptr<std::vector<float>> element_timestamp_;
@@ -132,9 +133,13 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         label_offset_ = size_links_level0_ + data_size_;
         offsetLevel0_ = 0;
 
-        data_level0_memory_ = (char *) malloc(max_elements_ * size_data_per_element_);
-        if (data_level0_memory_ == nullptr)
-            throw std::runtime_error("Not enough memory");
+        if (data_level0_memory_ == nullptr) {
+            // data_level0_memory_ = std::make_shared<char[]>(max_elements * size_data_per_element_);
+            data_level0_memory_ = std::make_shared<std::vector<char>>(max_elements * size_data_per_element_);
+        }
+        // data_level0_memory_ = (char *) malloc(max_elements_ * size_data_per_element_);
+        // if (data_level0_memory_ == nullptr)
+        //     throw std::runtime_error("Not enough memory");
 
         cur_element_count = 0;
 
@@ -173,8 +178,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         fstdistfunc_ = rhs.fstdistfunc_;
         dist_func_param_ = rhs.dist_func_param_;
 
-        data_level0_memory_ = (char *) malloc(max_elements_ * size_data_per_element_);
-        memcpy(data_level0_memory_, rhs.data_level0_memory_, cur_element_count * size_data_per_element_);
+        data_level0_memory_ = rhs.data_level0_memory_;
+        // data_level0_memory_ = (char *) malloc(max_elements_ * size_data_per_element_);
+        // memcpy(data_level0_memory_, rhs.data_level0_memory_, cur_element_count * size_data_per_element_);
         size_links_per_element_ = maxM_ * sizeof(tableint) + sizeof(linklistsizeint);
         size_links_level0_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);
         std::vector<std::mutex>(max_elements_).swap(link_list_locks_);
@@ -208,8 +214,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     }
 
     void clear() {
-        free(data_level0_memory_);
-        data_level0_memory_ = nullptr;
+        data_level0_memory_.reset();
+        // free(data_level0_memory_);
+        // data_level0_memory_ = nullptr;
         for (tableint i = 0; i < cur_element_count; i++) {
             if (element_levels_[i] > 0)
                 free(linkLists_[i]);
@@ -243,23 +250,23 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     inline labeltype getExternalLabel(tableint internal_id) const {
         labeltype return_label;
-        memcpy(&return_label, (data_level0_memory_ + internal_id * size_data_per_element_ + label_offset_), sizeof(labeltype));
+        memcpy(&return_label, (data_level0_memory_->data() + internal_id * size_data_per_element_ + label_offset_), sizeof(labeltype));
         return return_label;
     }
 
 
     inline void setExternalLabel(tableint internal_id, labeltype label) const {
-        memcpy((data_level0_memory_ + internal_id * size_data_per_element_ + label_offset_), &label, sizeof(labeltype));
+        memcpy((data_level0_memory_->data() + internal_id * size_data_per_element_ + label_offset_), &label, sizeof(labeltype));
     }
 
 
     inline labeltype *getExternalLabeLp(tableint internal_id) const {
-        return (labeltype *) (data_level0_memory_ + internal_id * size_data_per_element_ + label_offset_);
+        return (labeltype *) (data_level0_memory_->data() + internal_id * size_data_per_element_ + label_offset_);
     }
 
 
     inline char *getDataByInternalId(tableint internal_id) const {
-        return (data_level0_memory_ + internal_id * size_data_per_element_ + offsetData_);
+        return (data_level0_memory_->data() + internal_id * size_data_per_element_ + offsetData_);
     }
 
 
@@ -428,7 +435,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 #ifdef USE_SSE
             _mm_prefetch((char *) (visited_array + *(data + 1)), _MM_HINT_T0);
             _mm_prefetch((char *) (visited_array + *(data + 1) + 64), _MM_HINT_T0);
-            _mm_prefetch(data_level0_memory_ + (*(data + 1)) * size_data_per_element_ + offsetData_, _MM_HINT_T0);
+            _mm_prefetch(data_level0_memory_->data() + (*(data + 1)) * size_data_per_element_ + offsetData_, _MM_HINT_T0);
             _mm_prefetch((char *) (data + 2), _MM_HINT_T0);
 #endif
 
@@ -437,7 +444,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 //                    if (candidate_id == 0) continue;
 #ifdef USE_SSE
                 _mm_prefetch((char *) (visited_array + *(data + j + 1)), _MM_HINT_T0);
-                _mm_prefetch(data_level0_memory_ + (*(data + j + 1)) * size_data_per_element_ + offsetData_,
+                _mm_prefetch(data_level0_memory_->data() + (*(data + j + 1)) * size_data_per_element_ + offsetData_,
                                 _MM_HINT_T0);  ////////////
 #endif
                 if (!(visited_array[candidate_id] == visited_array_tag)) {
@@ -456,7 +463,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     if (flag_consider_candidate) {
                         candidate_set.emplace(-dist, candidate_id);
 #ifdef USE_SSE
-                        _mm_prefetch(data_level0_memory_ + candidate_set.top().second * size_data_per_element_ +
+                        _mm_prefetch(data_level0_memory_->data() + candidate_set.top().second * size_data_per_element_ +
                                         offsetLevel0_,  ///////////
                                         _MM_HINT_T0);  ////////////////////////
 #endif
@@ -564,7 +571,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 #ifdef USE_SSE
             _mm_prefetch((char *) (visited_array + *(data + 1)), _MM_HINT_T0);
             _mm_prefetch((char *) (visited_array + *(data + 1) + 64), _MM_HINT_T0);
-            _mm_prefetch(data_level0_memory_ + (*(data + 1)) * size_data_per_element_ + offsetData_, _MM_HINT_T0);
+            _mm_prefetch(data_level0_memory_->data() + (*(data + 1)) * size_data_per_element_ + offsetData_, _MM_HINT_T0);
             _mm_prefetch((char *) (data + 2), _MM_HINT_T0);
 #endif
 
@@ -573,7 +580,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 //                    if (candidate_id == 0) continue;
 #ifdef USE_SSE
                 _mm_prefetch((char *) (visited_array + *(data + j + 1)), _MM_HINT_T0);
-                _mm_prefetch(data_level0_memory_ + (*(data + j + 1)) * size_data_per_element_ + offsetData_,
+                _mm_prefetch(data_level0_memory_->data() + (*(data + j + 1)) * size_data_per_element_ + offsetData_,
                                 _MM_HINT_T0);  ////////////
 #endif
                 if (!(visited_array[candidate_id] == visited_array_tag)) {
@@ -592,7 +599,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     if (flag_consider_candidate) {
                         candidate_set.emplace(-dist, candidate_id);
 #ifdef USE_SSE
-                        _mm_prefetch(data_level0_memory_ + candidate_set.top().second * size_data_per_element_ +
+                        _mm_prefetch(data_level0_memory_->data() + candidate_set.top().second * size_data_per_element_ +
                                         offsetLevel0_,  ///////////
                                         _MM_HINT_T0);  ////////////////////////
 #endif
@@ -678,7 +685,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     linklistsizeint *get_linklist0(tableint internal_id) const {
-        return (linklistsizeint *) (data_level0_memory_ + internal_id * size_data_per_element_ + offsetLevel0_);
+        return (linklistsizeint *) (data_level0_memory_->data() + internal_id * size_data_per_element_ + offsetLevel0_);
     }
 
 
@@ -835,10 +842,11 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::vector<std::mutex>(new_max_elements).swap(link_list_locks_);
 
         // Reallocate base layer
-        char * data_level0_memory_new = (char *) realloc(data_level0_memory_, new_max_elements * size_data_per_element_);
-        if (data_level0_memory_new == nullptr)
-            throw std::runtime_error("Not enough memory: resizeIndex failed to allocate base layer");
-        data_level0_memory_ = data_level0_memory_new;
+        data_level0_memory_ = std::make_shared<char[]>(new_max_elements * size_data_per_element_);
+        // char * data_level0_memory_new = (char *) realloc(data_level0_memory_, new_max_elements * size_data_per_element_);
+        // if (data_level0_memory_new == nullptr)
+        //     throw std::runtime_error("Not enough memory: resizeIndex failed to allocate base layer");
+        // data_level0_memory_ = data_level0_memory_new;
 
         // Reallocate all other layers
         char ** linkLists_new = (char **) realloc(linkLists_, sizeof(void *) * new_max_elements);
@@ -895,7 +903,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         writeBinaryPOD(output, mult_);
         writeBinaryPOD(output, ef_construction_);
 
-        output.write(data_level0_memory_, cur_element_count * size_data_per_element_);
+        output.write(data_level0_memory_->data(), cur_element_count * size_data_per_element_);
 
         for (size_t i = 0; i < cur_element_count; i++) {
             unsigned int linkListSize = element_levels_[i] > 0 ? size_links_per_element_ * element_levels_[i] : 0;
@@ -968,10 +976,11 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         input.seekg(pos, input.beg);
 
-        data_level0_memory_ = (char *) malloc(max_elements * size_data_per_element_);
-        if (data_level0_memory_ == nullptr)
-            throw std::runtime_error("Not enough memory: loadIndex failed to allocate level0");
-        input.read(data_level0_memory_, cur_element_count * size_data_per_element_);
+        data_level0_memory_ = std::make_shared<char[]>(max_elements * size_data_per_element_);
+        // data_level0_memory_ = (char *) malloc(max_elements * size_data_per_element_);
+        // if (data_level0_memory_ == nullptr)
+        //     throw std::runtime_error("Not enough memory: loadIndex failed to allocate level0");
+        input.read(data_level0_memory_->data(), cur_element_count * size_data_per_element_);
 
         size_links_per_element_ = maxM_ * sizeof(tableint) + sizeof(linklistsizeint);
 
@@ -1398,7 +1407,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         tableint currObj = enterpoint_node_;
         tableint enterpoint_copy = enterpoint_node_;
 
-        memset(data_level0_memory_ + cur_c * size_data_per_element_ + offsetLevel0_, 0, size_data_per_element_);
+        memset(data_level0_memory_->data() + cur_c * size_data_per_element_ + offsetLevel0_, 0, size_data_per_element_);
 
         // Initialisation of the data and label
         memcpy(getExternalLabeLp(cur_c), &label, sizeof(labeltype));

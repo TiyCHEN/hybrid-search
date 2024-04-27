@@ -15,3 +15,20 @@ float EuclideanDistanceSquare(const std::vector<float>& a,
 int64_t time_cost(const std::chrono::system_clock::time_point &st, const std::chrono::system_clock::time_point &en) {
     return std::chrono::duration_cast<std::chrono::milliseconds>(en - st).count();
 }
+
+float SumOfSquares(const std::vector<float>& a) {
+    float ret = 0.0;
+    for (size_t i = 0; i < a.size(); ++i) {
+        ret += a[i] * a[i];
+    }
+    return ret;
+}
+
+float SumOfSquares(const void* a) {
+    float *aa = (float *) a;
+    float ret = 0.0;
+    for (size_t i = 0; i < VEC_DIMENSION; ++i) {
+        ret += aa[i] * aa[i];
+    }
+    return ret;
+}

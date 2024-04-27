@@ -1,5 +1,6 @@
 #pragma once
 #include "core.h"
+#include "util.h"
 #include "data_format.h"
 
 void SaveKNN(const std::vector<std::vector<uint32_t>>& knns,
@@ -59,6 +60,7 @@ void ReadData(const std::string& file_path,
         } else {
             node_label_index[label].emplace_back(i);
         }
+        data_set._sum_of_squares[i] = SumOfSquares(data_set._vecs[i]);
     }
 
     flag = munmap(mapped_buffer, file_size);
@@ -96,6 +98,7 @@ void ReadQuery(const std::string& file_path,
         memcpy(query_set._queries[i]._vec.data(), iter, (num_dimensions - 4) * sizeof(float));
         iter += num_dimensions - 4;
         query_type_index[type].emplace_back(i);
+        query_set._queries[i]._sum_of_square = SumOfSquares(query_set._queries[i]._vec);
     }
 
     flag = munmap(mapped_buffer, file_size);

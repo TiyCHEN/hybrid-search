@@ -34,7 +34,8 @@ int main(int argc, char** argv) {
         knns.reserve(K);
     }
 
-    base_hnsw::L2Space space(VEC_DIMENSION);
+    base_hnsw::InnerProductSpace space(VEC_DIMENSION);
+    // base_hnsw::L2Space s_space(VEC_DIMENSION);
     SolveQueryType02(space, data_set, query_set, knn_results);
     SolveQueryType13(space, data_set, query_set, knn_results);
 

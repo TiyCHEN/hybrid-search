@@ -6,6 +6,7 @@ struct DataSet {
     // std::vector<int32_t> _labels;
     std::vector<float> _timestamps;
     std::vector<std::vector<float>> _vecs;
+    std::vector<float> _sum_of_squares;
     std::unordered_map<int32_t, std::vector<int32_t>> _label_index;
 
     // functions
@@ -18,6 +19,7 @@ struct DataSet {
     void resize(size_t size) {
         _timestamps.resize(size);
         _vecs.resize(size);
+        _sum_of_squares.resize(size);
     }
 
     size_t size() {
@@ -31,6 +33,7 @@ struct Query
     int32_t _label;
     float _l, _r; // _range = [l, r]
     std::vector<float> _vec;
+    float _sum_of_square;
 };
 
 struct QuerySet {

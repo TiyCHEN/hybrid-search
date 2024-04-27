@@ -15,7 +15,8 @@ InnerProduct(const void *pVect1, const void *pVect2, const void *qty_ptr) {
 
 static float
 InnerProductDistance(const void *pVect1, const void *pVect2, const void *qty_ptr) {
-    return 1.0f - InnerProduct(pVect1, pVect2, qty_ptr);
+    // return 1.0f - InnerProduct(pVect1, pVect2, qty_ptr);
+    return InnerProduct(pVect1, pVect2, qty_ptr);
 }
 
 #if defined(USE_AVX)
@@ -70,7 +71,8 @@ InnerProductSIMD4ExtAVX(const void *pVect1v, const void *pVect2v, const void *qt
 
 static float
 InnerProductDistanceSIMD4ExtAVX(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
-    return 1.0f - InnerProductSIMD4ExtAVX(pVect1v, pVect2v, qty_ptr);
+    // return 1.0f - InnerProductSIMD4ExtAVX(pVect1v, pVect2v, qty_ptr);
+    return InnerProductSIMD4ExtAVX(pVect1v, pVect2v, qty_ptr);
 }
 
 #endif
@@ -135,7 +137,8 @@ InnerProductSIMD4ExtSSE(const void *pVect1v, const void *pVect2v, const void *qt
 
 static float
 InnerProductDistanceSIMD4ExtSSE(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
-    return 1.0f - InnerProductSIMD4ExtSSE(pVect1v, pVect2v, qty_ptr);
+    // return 1.0f - InnerProductSIMD4ExtSSE(pVect1v, pVect2v, qty_ptr);
+    return InnerProductSIMD4ExtSSE(pVect1v, pVect2v, qty_ptr);
 }
 
 #endif
@@ -200,7 +203,8 @@ InnerProductSIMD16ExtAVX512(const void *pVect1v, const void *pVect2v, const void
 
 static float
 InnerProductDistanceSIMD16ExtAVX512(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
-    return 1.0f - InnerProductSIMD16ExtAVX512(pVect1v, pVect2v, qty_ptr);
+    // return 1.0f - InnerProductSIMD16ExtAVX512(pVect1v, pVect2v, qty_ptr);
+    return InnerProductSIMD16ExtAVX512(pVect1v, pVect2v, qty_ptr);
 }
 
 #endif
@@ -245,7 +249,8 @@ InnerProductSIMD16ExtAVX(const void *pVect1v, const void *pVect2v, const void *q
 
 static float
 InnerProductDistanceSIMD16ExtAVX(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
-    return 1.0f - InnerProductSIMD16ExtAVX(pVect1v, pVect2v, qty_ptr);
+    // return 1.0f - InnerProductSIMD16ExtAVX(pVect1v, pVect2v, qty_ptr);
+    return InnerProductSIMD16ExtAVX(pVect1v, pVect2v, qty_ptr);
 }
 
 #endif
@@ -299,7 +304,8 @@ InnerProductSIMD16ExtSSE(const void *pVect1v, const void *pVect2v, const void *q
 
 static float
 InnerProductDistanceSIMD16ExtSSE(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
-    return 1.0f - InnerProductSIMD16ExtSSE(pVect1v, pVect2v, qty_ptr);
+    // return 1.0f - InnerProductSIMD16ExtSSE(pVect1v, pVect2v, qty_ptr);
+    return InnerProductSIMD16ExtSSE(pVect1v, pVect2v, qty_ptr);
 }
 
 #endif
@@ -320,7 +326,8 @@ InnerProductDistanceSIMD16ExtResiduals(const void *pVect1v, const void *pVect2v,
 
     size_t qty_left = qty - qty16;
     float res_tail = InnerProduct(pVect1, pVect2, &qty_left);
-    return 1.0f - (res + res_tail);
+    // return 1.0f - (res + res_tail);
+    return (res + res_tail);
 }
 
 static float
@@ -335,7 +342,18 @@ InnerProductDistanceSIMD4ExtResiduals(const void *pVect1v, const void *pVect2v, 
     float *pVect2 = (float *) pVect2v + qty4;
     float res_tail = InnerProduct(pVect1, pVect2, &qty_left);
 
-    return 1.0f - (res + res_tail);
+    // return 1.0f - (res + res_tail);
+    return res + res_tail;
+}
+
+// the qty_ptr is 100, we seperate it into 96 + 4.
+static float
+InnerProductDistanceHybridSimd(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+    size_t dim1_ = 96;
+    size_t dim2_ = 4;
+    float *pVect1 = (float *) pVect1v;
+    float *pVect2 = (float *) pVect2v;
+    return InnerProductDistanceSIMD16Ext(pVect1v,pVect2v,&dim1_) + InnerProductDistanceSIMD4Ext(pVect1+dim1_,pVect2+dim1_,&dim2_);
 }
 #endif
 
@@ -369,7 +387,9 @@ class InnerProductSpace : public SpaceInterface<float> {
         }
     #endif
 
-        if (dim % 16 == 0)
+        if (dim == 100)
+            fstdistfunc_ = InnerProductDistanceHybridSimd;
+        else if (dim % 16 == 0)
             fstdistfunc_ = InnerProductDistanceSIMD16Ext;
         else if (dim % 4 == 0)
             fstdistfunc_ = InnerProductDistanceSIMD4Ext;

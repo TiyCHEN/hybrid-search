@@ -6,10 +6,11 @@
 #include "rangehnswalg.h"
 
 void SolveQueryType13(
-    base_hnsw::L2Space& space,
+    base_hnsw::InnerProductSpace& space,
     DataSet& data_set,
     QuerySet& query_set,
     std::vector<std::vector<uint32_t>>& knn_results) {
+    // base_hnsw::L2Space t_space(VEC_DIMENSION);
     auto& data_label_index = data_set._label_index;
     // build index
     std::unordered_map<int, std::unique_ptr<base_hnsw::RangeHierarchicalNSW<float>>> label_hnsw;
@@ -32,7 +33,7 @@ void SolveQueryType13(
                     int en_pos = SEGEMENTS_Q3[i] * index.size();
                     #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
                     for (int j = st_pos; j < en_pos; ++j) {
-                        cur_hnsw->addPoint(data_set._vecs[index[j]].data(), index[j], data_set._timestamps[index[j]]);
+                        cur_hnsw->addPoint(data_set._vecs[index[j]].data(), index[j], data_set._sum_of_squares[index[j]], data_set._timestamps[index[j]]);
                     }
                     label_partial_range[label].push_back(en_pos - 1);
                     st_pos = en_pos;
@@ -50,7 +51,7 @@ void SolveQueryType13(
                                     &space, index.size(), M_Q13, EF_CONSTRUCTION_Q13));
                 #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
                 for (uint32_t i = 0; i < index.size(); i++) {
-                    label_hnsw[label]->addPoint(data_set._vecs[index[i]].data(), index[i], data_set._timestamps[index[i]]);
+                    label_hnsw[label]->addPoint(data_set._vecs[index[i]].data(), index[i], data_set._sum_of_squares[index[i]], data_set._timestamps[index[i]]);
                 }
             }
         }
@@ -84,7 +85,8 @@ void SolveQueryType13(
                     continue;
                 }
                 #if defined(USE_AVX)
-                    float dist = space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
+                    float dist = data_set._sum_of_squares[id] + query._sum_of_square + (-2) * space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
+                    // float dist = t_space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
@@ -105,7 +107,8 @@ void SolveQueryType13(
                 for (int j = st_pos; j < en_pos; ++j) {
                     auto id = index[j];
                     #if defined(USE_AVX)
-                        float dist = space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
+                        float dist = data_set._sum_of_squares[id] + query._sum_of_square + (-2) * space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
+                        // float dist = t_space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
                     #else
                         float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                     #endif
@@ -118,13 +121,13 @@ void SolveQueryType13(
                 if (index.size() >= HNSW_PARTIAL_BUILD_THRESHOLD) {
                     for (int j = 0; j < label_partial_range[label].size(); ++j) {
                         if (label_partial_range[label][j] >= en_pos - 1) {
-                            result = label_partial_hnsw[label][j]->searchKnnWithRange(query_vec.data(), 100, l, r,
+                            result = label_partial_hnsw[label][j]->searchKnnWithRange(query_vec.data(), 100, l, r, query._sum_of_square,
                                      EFS_Q3_BASE + EFS_Q3_K * range_cnt / label_partial_range[label][j]);
                             break;
                         }
                     }
                 } else {
-                    result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r,
+                    result = label_hnsw[label]->searchKnnWithRange(query_vec.data(), 100, l, r, query._sum_of_square,
                              EFS_Q3_BASE + EFS_Q3_K * range_cnt / index.size());
                 }
             }
@@ -166,7 +169,8 @@ void SolveQueryType13(
         if (index.size() < HNSW_BUILD_THRESHOLD) {
             for (auto id : index) {
                 #if defined(USE_AVX)
-                    float dist = space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
+                    float dist = data_set._sum_of_squares[id] + query._sum_of_square + (-2) * space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
+                    // float dist = t_space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
@@ -177,9 +181,9 @@ void SolveQueryType13(
             }
         } else {
             if (index.size() >= HNSW_PARTIAL_BUILD_THRESHOLD) {
-                result = label_partial_hnsw[label].back()->searchKnn(query_vec.data(), 100, EFS_Q1_BASE + EFS_Q1_K * std::sqrt(1.0 * index.size() / data_set.size()));
+                result = label_partial_hnsw[label].back()->searchKnn(query_vec.data(), 100, query._sum_of_square, EFS_Q1_BASE + EFS_Q1_K * std::sqrt(1.0 * index.size() / data_set.size()));
             } else {
-                result = label_hnsw[label]->searchKnn(query_vec.data(), 100, EFS_Q1_BASE + EFS_Q1_K * std::sqrt(1.0 * index.size() / data_set.size()));
+                result = label_hnsw[label]->searchKnn(query_vec.data(), 100, query._sum_of_square, EFS_Q1_BASE + EFS_Q1_K * std::sqrt(1.0 * index.size() / data_set.size()));
             }
         }
 

@@ -52,6 +52,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     char **linkLists_{nullptr};
     std::vector<int> element_levels_;  // keeps level of each element
     std::shared_ptr<std::vector<float>> element_timestamp_;
+    std::shared_ptr<std::vector<float>> sum_of_squares_;
 
     size_t data_size_{0};
 
@@ -101,6 +102,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             allow_replace_deleted_(allow_replace_deleted) {
         if (element_timestamp_ == nullptr) {
             element_timestamp_ = std::make_shared<std::vector<float>>(std::vector<float>(max_elements));
+        }
+        if (sum_of_squares_ == nullptr) {
+            sum_of_squares_ = std::make_shared<std::vector<float>>(std::vector<float>(max_elements));
         }
         if (label_lookup_ == nullptr) {
             label_lookup_ = std::make_shared<std::unordered_map<labeltype, tableint>>();
@@ -188,6 +192,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         ef_ = rhs.ef_;
         label_lookup_ = rhs.label_lookup_;
         element_timestamp_ = rhs.element_timestamp_;
+        sum_of_squares_ = rhs.sum_of_squares_;
         #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
         for (size_t i = 0; i < cur_element_count; i++) {
             unsigned int linkListSize = rhs.element_levels_[i] > 0 ? rhs.size_links_per_element_ * rhs.element_levels_[i] : 0;
@@ -233,6 +238,26 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         ef_ = ef;
     }
 
+    dist_t hybridDistFunc(dist_t vect1s, dist_t vect2s, const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+        dist_t dist = fstdistfunc_(pVect1v, pVect2v, qty_ptr);
+        return vect1s + vect2s + (-2) * dist;
+    }
+
+    dist_t hybridDistFunc(tableint id1, dist_t vect2s, const void *pVect2v, const void *qty_ptr) {
+        const dist_t vect1s = (*sum_of_squares_)[id1];
+        const char* pVect1v = getDataByInternalId(id1);
+        dist_t dist = fstdistfunc_(pVect1v, pVect2v, qty_ptr);
+        return vect1s + vect2s + (-2) * dist;
+    }
+
+    dist_t hybridDistFunc(tableint id1, tableint id2, const void *qty_ptr) {
+        const dist_t vect1s = (*sum_of_squares_)[id1];
+        const dist_t vect2s = (*sum_of_squares_)[id2];
+        const char* pVect1v = getDataByInternalId(id1);
+        const char* pVect2v = getDataByInternalId(id2);
+        dist_t dist = fstdistfunc_(pVect1v, pVect2v, qty_ptr);
+        return vect1s + vect2s + (-2) * dist;
+    }
 
     inline std::mutex& getLabelOpMutex(labeltype label) const {
         // calculate hash
@@ -282,7 +307,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     }
 
     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst>
-    searchBaseLayer(tableint ep_id, const void *data_point, int layer) {
+    searchBaseLayer(tableint ep_id, const void *data_point, float sum_data_point, int layer) {
         VisitedList *vl = visited_list_pool_->getFreeVisitedList();
         vl_type *visited_array = vl->mass;
         vl_type visited_array_tag = vl->curV;
@@ -290,9 +315,11 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidateSet;
 
+        // float sum_data_point = SumOfSquares(data_point);
         dist_t lowerBound;
         if (!isMarkedDeleted(ep_id)) {
-            dist_t dist = fstdistfunc_(data_point, getDataByInternalId(ep_id), dist_func_param_);
+            dist_t dist = hybridDistFunc(ep_id, sum_data_point, data_point, dist_func_param_);
+            // dist_t dist = fstdistfunc_(data_point, getDataByInternalId(ep_id), dist_func_param_);
             top_candidates.emplace(dist, ep_id);
             lowerBound = dist;
             candidateSet.emplace(-dist, ep_id);
@@ -340,7 +367,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                 visited_array[candidate_id] = visited_array_tag;
                 char *currObj1 = (getDataByInternalId(candidate_id));
 
-                dist_t dist1 = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                // dist_t dist1 = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                dist_t dist1 = hybridDistFunc(candidate_id, sum_data_point, data_point, dist_func_param_);
                 if (top_candidates.size() < ef_construction_ || lowerBound > dist1) {
                     candidateSet.emplace(-dist1, candidate_id);
 #ifdef USE_SSE
@@ -371,6 +399,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         tableint ep_id,
         const void *data_point,
         size_t ef,
+        float sum_data_point,
         BaseFilterFunctor* isIdAllowed = nullptr,
         BaseSearchStopCondition<dist_t>* stop_condition = nullptr) {
         VisitedList *vl = visited_list_pool_->getFreeVisitedList();
@@ -383,7 +412,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         if (bare_bone_search ||
             (!isMarkedDeleted(ep_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id))))) {
             char* ep_data = getDataByInternalId(ep_id);
-            dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
+            // dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
+            dist_t dist = hybridDistFunc(ep_id, sum_data_point, data_point, dist_func_param_);
             lowerBound = dist;
             top_candidates.emplace(dist, ep_id);
             if (!bare_bone_search && stop_condition) {
@@ -444,7 +474,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     visited_array[candidate_id] = visited_array_tag;
 
                     char *currObj1 = (getDataByInternalId(candidate_id));
-                    dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                    // dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                    dist_t dist = hybridDistFunc(candidate_id, sum_data_point, data_point, dist_func_param_);
 
                     bool flag_consider_candidate;
                     if (!bare_bone_search && stop_condition) {
@@ -507,6 +538,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             size_t ef,
             const float l,
             const float r,
+            const float sum_data_point,
             BaseFilterFunctor* isIdAllowed = nullptr,
             BaseSearchStopCondition<dist_t>* stop_condition = nullptr) {
         VisitedList *vl = visited_list_pool_->getFreeVisitedList();
@@ -519,7 +551,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         if (bare_bone_search ||
             (isInRange(ep_id, l, r) && !isMarkedDeleted(ep_id) && ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id))))) {
             char* ep_data = getDataByInternalId(ep_id);
-            dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
+            // dist_t dist = fstdistfunc_(data_point, ep_data, dist_func_param_);
+            dist_t dist = hybridDistFunc(ep_id, sum_data_point, data_point, dist_func_param_);
             lowerBound = dist;
             top_candidates.emplace(dist, ep_id);
             if (!bare_bone_search && stop_condition) {
@@ -580,7 +613,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     visited_array[candidate_id] = visited_array_tag;
 
                     char *currObj1 = (getDataByInternalId(candidate_id));
-                    dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                    // dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                    dist_t dist = hybridDistFunc(candidate_id, sum_data_point, data_point, dist_func_param_);
 
                     bool flag_consider_candidate;
                     if (!bare_bone_search && stop_condition) {
@@ -651,28 +685,29 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         while (queue_closest.size()) {
             if (return_list.size() >= M)
                 break;
-            std::pair<dist_t, tableint> curent_pair = queue_closest.top();
-            dist_t dist_to_query = -curent_pair.first;
+            std::pair<dist_t, tableint> current_pair = queue_closest.top();
+            dist_t dist_to_query = -current_pair.first;
             queue_closest.pop();
             bool good = true;
 
             for (std::pair<dist_t, tableint> second_pair : return_list) {
-                dist_t curdist =
-                        fstdistfunc_(getDataByInternalId(second_pair.second),
-                                        getDataByInternalId(curent_pair.second),
-                                        dist_func_param_);
+                // dist_t curdist =
+                //         fstdistfunc_(getDataByInternalId(second_pair.second),
+                //                         getDataByInternalId(current_pair.second),
+                //                         dist_func_param_);
+                dist_t curdist = hybridDistFunc(second_pair.second, current_pair.second, dist_func_param_);
                 if (curdist < dist_to_query) {
                     good = false;
                     break;
                 }
             }
             if (good) {
-                return_list.push_back(curent_pair);
+                return_list.push_back(current_pair);
             }
         }
 
-        for (std::pair<dist_t, tableint> curent_pair : return_list) {
-            top_candidates.emplace(-curent_pair.first, curent_pair.second);
+        for (std::pair<dist_t, tableint> current_pair : return_list) {
+            top_candidates.emplace(-current_pair.first, current_pair.second);
         }
     }
 
@@ -782,16 +817,18 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     setListCount(ll_other, sz_link_list_other + 1);
                 } else {
                     // finding the "weakest" element to replace it with the new one
-                    dist_t d_max = fstdistfunc_(getDataByInternalId(cur_c), getDataByInternalId(selectedNeighbors[idx]),
-                                                dist_func_param_);
+                    // dist_t d_max = fstdistfunc_(getDataByInternalId(cur_c), getDataByInternalId(selectedNeighbors[idx]),
+                    //                             dist_func_param_);
+                    dist_t d_max = hybridDistFunc(cur_c, selectedNeighbors[idx], dist_func_param_);
                     // Heuristic:
                     std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> candidates;
                     candidates.emplace(d_max, cur_c);
 
                     for (size_t j = 0; j < sz_link_list_other; j++) {
                         candidates.emplace(
-                                fstdistfunc_(getDataByInternalId(data[j]), getDataByInternalId(selectedNeighbors[idx]),
-                                                dist_func_param_), data[j]);
+                        //         fstdistfunc_(getDataByInternalId(data[j]), getDataByInternalId(selectedNeighbors[idx]),
+                        //                         dist_func_param_), data[j]);
+                                hybridDistFunc(data[j], selectedNeighbors[idx], dist_func_param_), data[j]);
                     }
 
                     getNeighborsByHeuristic2(candidates, Mcurmax);
@@ -1152,7 +1189,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     * Adds point. Updates the point if it is already in the index.
     * If replacement of deleted elements is enabled: replaces previously deleted point if any, updating it with new point
     */
-    void addPoint(const void *data_point, labeltype label, float timestamp, bool replace_deleted = false) {
+    void addPoint(const void *data_point, labeltype label, float sum_data_point, float timestamp, bool replace_deleted = false) {
         if ((allow_replace_deleted_ == false) && (replace_deleted == true)) {
             throw std::runtime_error("Replacement of deleted elements is disabled in constructor");
         }
@@ -1160,7 +1197,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         // lock all operations with element by label
         std::unique_lock <std::mutex> lock_label(getLabelOpMutex(label));
         if (!replace_deleted) {
-            addPoint(data_point, label, -1, timestamp);
+            addPoint(data_point, label, -1, sum_data_point, timestamp);
             return;
         }
         // check if there is vacant place
@@ -1176,7 +1213,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         // if there is no vacant place then add or update point
         // else add point to vacant place
         if (!is_vacant_place) {
-            addPoint(data_point, label, -1);
+            addPoint(data_point, label, -1, sum_data_point);
         } else {
             // we assume that there are no concurrent operations on deleted element
             labeltype label_replaced = getExternalLabel(internal_id_replaced);
@@ -1188,12 +1225,12 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             lock_table.unlock();
 
             unmarkDeletedInternal(internal_id_replaced);
-            updatePoint(data_point, internal_id_replaced, 1.0);
+            updatePoint(data_point, sum_data_point, internal_id_replaced, 1.0);
         }
     }
 
 
-    void updatePoint(const void *dataPoint, tableint internalId, float updateNeighborProbability) {
+    void updatePoint(const void *dataPoint, float sum_data_point, tableint internalId, float updateNeighborProbability) {
         // update the feature vector associated with existing point with new vector
         memcpy(getDataByInternalId(internalId), dataPoint, data_size_);
 
@@ -1239,7 +1276,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     if (cand == neigh)
                         continue;
 
-                    dist_t distance = fstdistfunc_(getDataByInternalId(neigh), getDataByInternalId(cand), dist_func_param_);
+                    // dist_t distance = fstdistfunc_(getDataByInternalId(neigh), getDataByInternalId(cand), dist_func_param_);
+                    dist_t distance = hybridDistFunc(neigh, cand, dist_func_param_);
                     if (candidates.size() < elementsToKeep) {
                         candidates.emplace(distance, cand);
                     } else {
@@ -1268,19 +1306,22 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             }
         }
 
-        repairConnectionsForUpdate(dataPoint, entryPointCopy, internalId, elemLevel, maxLevelCopy);
+        repairConnectionsForUpdate(dataPoint, sum_data_point, entryPointCopy, internalId, elemLevel, maxLevelCopy);
     }
 
 
     void repairConnectionsForUpdate(
         const void *dataPoint,
+        float sum_data_point,
         tableint entryPointInternalId,
         tableint dataPointInternalId,
         int dataPointLevel,
         int maxLevel) {
         tableint currObj = entryPointInternalId;
+        // float sum_data_point = SumOfSquares(dataPoint);
         if (dataPointLevel < maxLevel) {
-            dist_t curdist = fstdistfunc_(dataPoint, getDataByInternalId(currObj), dist_func_param_);
+            // dist_t curdist = fstdistfunc_(dataPoint, getDataByInternalId(currObj), dist_func_param_);
+            dist_t curdist = hybridDistFunc(currObj, sum_data_point, dataPoint, dist_func_param_);
             for (int level = maxLevel; level > dataPointLevel; level--) {
                 bool changed = true;
                 while (changed) {
@@ -1298,7 +1339,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                         _mm_prefetch(getDataByInternalId(*(datal + i + 1)), _MM_HINT_T0);
 #endif
                         tableint cand = datal[i];
-                        dist_t d = fstdistfunc_(dataPoint, getDataByInternalId(cand), dist_func_param_);
+                        // dist_t d = fstdistfunc_(dataPoint, getDataByInternalId(cand), dist_func_param_);
+                        dist_t d = hybridDistFunc(cand, sum_data_point, dataPoint, dist_func_param_);
                         if (d < curdist) {
                             curdist = d;
                             currObj = cand;
@@ -1314,7 +1356,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         for (int level = dataPointLevel; level >= 0; level--) {
             std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> topCandidates = searchBaseLayer(
-                    currObj, dataPoint, level);
+                    currObj, dataPoint, sum_data_point, level);
 
             std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> filteredTopCandidates;
             while (topCandidates.size() > 0) {
@@ -1329,7 +1371,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             if (filteredTopCandidates.size() > 0) {
                 bool epDeleted = isMarkedDeleted(entryPointInternalId);
                 if (epDeleted) {
-                    filteredTopCandidates.emplace(fstdistfunc_(dataPoint, getDataByInternalId(entryPointInternalId), dist_func_param_), entryPointInternalId);
+                    // filteredTopCandidates.emplace(fstdistfunc_(dataPoint, getDataByInternalId(entryPointInternalId), dist_func_param_), entryPointInternalId);
+                    filteredTopCandidates.emplace(hybridDistFunc(entryPointInternalId, sum_data_point, dataPoint, dist_func_param_), entryPointInternalId);
                     if (filteredTopCandidates.size() > ef_construction_)
                         filteredTopCandidates.pop();
                 }
@@ -1351,7 +1394,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     }
 
 
-    tableint addPoint(const void *data_point, labeltype label, int level, float timestamp) {
+    tableint addPoint(const void *data_point, labeltype label, int level, float sum_data_point, float timestamp) {
         tableint cur_c = 0;
         {
             // Checking if the element with the same label already exists
@@ -1370,7 +1413,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                 if (isMarkedDeleted(existingInternalId)) {
                     unmarkDeletedInternal(existingInternalId);
                 }
-                updatePoint(data_point, existingInternalId, 1.0);
+                updatePoint(data_point, sum_data_point, existingInternalId, 1.0);
 
                 return existingInternalId;
             }
@@ -1390,6 +1433,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             curlevel = level;
         element_levels_[cur_c] = curlevel;
         (*element_timestamp_)[cur_c] = timestamp;
+        (*sum_of_squares_)[cur_c] = sum_data_point;
 
         std::unique_lock <std::mutex> templock(global);
         int maxlevelcopy = maxlevel_;
@@ -1413,7 +1457,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         if ((signed)currObj != -1) {
             if (curlevel < maxlevelcopy) {
-                dist_t curdist = fstdistfunc_(data_point, getDataByInternalId(currObj), dist_func_param_);
+                // dist_t curdist = fstdistfunc_(data_point, getDataByInternalId(currObj), dist_func_param_);
+                dist_t curdist = hybridDistFunc(currObj, sum_data_point, data_point, dist_func_param_);
                 for (int level = maxlevelcopy; level > curlevel; level--) {
                     bool changed = true;
                     while (changed) {
@@ -1428,7 +1473,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                             tableint cand = datal[i];
                             if (cand < 0 || cand > max_elements_)
                                 throw std::runtime_error("cand error");
-                            dist_t d = fstdistfunc_(data_point, getDataByInternalId(cand), dist_func_param_);
+                            // dist_t d = fstdistfunc_(data_point, getDataByInternalId(cand), dist_func_param_);
+                            dist_t d = hybridDistFunc(cand, sum_data_point, data_point, dist_func_param_);
                             if (d < curdist) {
                                 curdist = d;
                                 currObj = cand;
@@ -1445,9 +1491,10 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     throw std::runtime_error("Level error");
 
                 std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates = searchBaseLayer(
-                        currObj, data_point, level);
+                        currObj, data_point, sum_data_point, level);
                 if (epDeleted) {
-                    top_candidates.emplace(fstdistfunc_(data_point, getDataByInternalId(enterpoint_copy), dist_func_param_), enterpoint_copy);
+                    // top_candidates.emplace(fstdistfunc_(data_point, getDataByInternalId(enterpoint_copy), dist_func_param_), enterpoint_copy);
+                    top_candidates.emplace(hybridDistFunc(enterpoint_copy, sum_data_point, data_point, dist_func_param_), enterpoint_copy);
                     if (top_candidates.size() > ef_construction_)
                         top_candidates.pop();
                 }
@@ -1469,12 +1516,14 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r, size_t ef = 0, BaseFilterFunctor* isIdAllowed = nullptr) {
+    searchKnnWithRange(const void *query_data, size_t k, const float l, const float r, const float sum_data_point, size_t ef = 0, BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
         if (ef == 0) ef = ef_;
         tableint currObj = enterpoint_node_;
-        dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        // dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        // dist_t sum_data_point = SumOfSquares(query_data);
+        dist_t curdist = hybridDistFunc(enterpoint_node_, sum_data_point, query_data, dist_func_param_);
         for (int level = maxlevel_; level > 0; level--) {
             bool changed = true;
             while (changed) {
@@ -1491,7 +1540,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     tableint cand = datal[i];
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
-                    dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+                    // dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+                    dist_t d = hybridDistFunc(cand, sum_data_point, query_data, dist_func_param_);
 
                     if (d < curdist) {
                         curdist = d;
@@ -1504,7 +1554,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         top_candidates = searchBaseLayerSTWithRange<false>(
-                currObj, query_data, std::max(ef, k), l, r, isIdAllowed);
+                currObj, query_data, std::max(ef, k), l, r, sum_data_point, isIdAllowed);
 
         while (top_candidates.size() > k) {
             top_candidates.pop();
@@ -1519,12 +1569,14 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     std::priority_queue<std::pair<dist_t, labeltype >>
-    searchKnn(const void *query_data, size_t k, size_t ef = 0, BaseFilterFunctor* isIdAllowed = nullptr) {
+    searchKnn(const void *query_data, size_t k, float sum_data_point, size_t ef = 0, BaseFilterFunctor* isIdAllowed = nullptr) {
         std::priority_queue<std::pair<dist_t, labeltype >> result;
         if (cur_element_count == 0) return result;
         if (ef == 0) ef = ef_;
         tableint currObj = enterpoint_node_;
-        dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        // dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        // float sum_data_point = SumOfSquares(query_data);
+        dist_t curdist = hybridDistFunc(enterpoint_node_, sum_data_point, query_data, dist_func_param_);
         for (int level = maxlevel_; level > 0; level--) {
             bool changed = true;
             while (changed) {
@@ -1541,7 +1593,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     tableint cand = datal[i];
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
-                    dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+                    // dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+                    dist_t d = hybridDistFunc(cand, sum_data_point, query_data, dist_func_param_);
 
                     if (d < curdist) {
                         curdist = d;
@@ -1554,7 +1607,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
         top_candidates = searchBaseLayerST<false>(
-                currObj, query_data, std::max(ef, k), isIdAllowed);
+                currObj, query_data, std::max(ef, k), sum_data_point, isIdAllowed);
 
         while (top_candidates.size() > k) {
             top_candidates.pop();
@@ -1571,6 +1624,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
     std::vector<std::pair<dist_t, labeltype >>
     searchStopConditionClosest(
         const void *query_data,
+        const float sum_data_point,
         BaseSearchStopCondition<dist_t>& stop_condition,
         BaseFilterFunctor* isIdAllowed = nullptr) const {
 
@@ -1579,7 +1633,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         tableint currObj = enterpoint_node_;
 
-        dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        // float sum_data_point = SumOfSquares(query_data);
+        // dist_t curdist = fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        dist_t curdist = hybridDistFunc(enterpoint_node_, sum_data_point, query_data, dist_func_param_);
 
         for (int level = maxlevel_; level > 0; level--) {
             bool changed = true;
@@ -1597,8 +1653,8 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     tableint cand = datal[i];
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
-                    dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
-
+                    // dist_t d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+                    dist_t d = hybridDistFunc(cand, sum_data_point, query_data, dist_func_param_);
                     if (d < curdist) {
                         curdist = d;
                         currObj = cand;
@@ -1609,7 +1665,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         }
 
         std::priority_queue<std::pair<dist_t, tableint>, std::vector<std::pair<dist_t, tableint>>, CompareByFirst> top_candidates;
-        top_candidates = searchBaseLayerST<false>(currObj, query_data, 0, isIdAllowed, &stop_condition);
+        top_candidates = searchBaseLayerST<false>(currObj, query_data, 0, sum_data_point, isIdAllowed, &stop_condition);
 
         size_t sz = top_candidates.size();
         result.resize(sz);

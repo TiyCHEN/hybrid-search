@@ -6,7 +6,7 @@
 #include "rangehnswalg.h"
 
 void SolveQueryType02(
-    base_hnsw::L2Space& space,
+    base_hnsw::InnerProductSpace& space,
     DataSet& data_set,
     QuerySet& query_set,
     std::vector<std::vector<uint32_t>>& knn_results) {
@@ -27,9 +27,13 @@ void SolveQueryType02(
         #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
         for (int j = st_pos; j < en_pos; ++j) {
             // it's ok since data_size % 2 == 0
-            cur_hnsw->addPoint(data_set._vecs[data_time_index[j + data_half]].data(), data_time_index[j + data_half],
+            cur_hnsw->addPoint(data_set._vecs[data_time_index[j + data_half]].data(),
+                                data_time_index[j + data_half],
+                                data_set._sum_of_squares[data_time_index[j + data_half]],
                                 data_set._timestamps[data_time_index[j + data_half]]);
-            cur_hnsw->addPoint(data_set._vecs[data_time_index[data_half - 1 - j]].data(), data_time_index[data_half - 1 - j],
+            cur_hnsw->addPoint(data_set._vecs[data_time_index[data_half - 1 - j]].data(), 
+                                data_time_index[data_half - 1 - j],
+                                data_set._sum_of_squares[data_time_index[data_half - 1 - j]],
                                 data_set._timestamps[data_time_index[data_half - 1 - j]]);
         }
         partial_range.emplace_back(data_half - en_pos, data_half + en_pos - 1);
@@ -70,7 +74,8 @@ void SolveQueryType02(
             for (int j = st_pos; j < en_pos; ++j) {
                 auto id = data_time_index[j];
                 #if defined(USE_AVX)
-                    float dist = space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
+                    float dist = data_set._sum_of_squares[id] + query._sum_of_square + (-2) * space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
+                    // float dist = t_space.get_dist_func()(data_set._vecs[id].data(), query_vec.data(), &VEC_DIMENSION);
                 #else
                     float dist = EuclideanDistanceSquare(data_set._vecs[id], query_vec);
                 #endif
@@ -83,7 +88,7 @@ void SolveQueryType02(
             for (int j = 0; j < partial_range.size(); ++j) {
                 if (partial_range[j].first <= st_pos && partial_range[j].second >= en_pos) {
                     int sz = partial_range[j].second - partial_range[j].first + 1;
-                    result = partial_hnsw[j]->searchKnnWithRange(query_vec.data(), 100, l, r, EFS_Q2_BASE + EFS_Q2_K * range_cnt / sz);
+                    result = partial_hnsw[j]->searchKnnWithRange(query_vec.data(), 100, l, r, query._sum_of_square, EFS_Q2_BASE + EFS_Q2_K * range_cnt / sz);
                     break;
                 }
             }
@@ -113,7 +118,7 @@ void SolveQueryType02(
         const auto& query_vec = query._vec;
         auto& knn = knn_results[q0_indexes[i]];
         std::priority_queue<std::pair<float, base_hnsw::labeltype>> result;
-        result = whole_hnsw->searchKnn(query_vec.data(), 100, EFS_Q0_BASE);
+        result = whole_hnsw->searchKnn(query_vec.data(), 100, query._sum_of_square, EFS_Q0_BASE);
         while (knn.size() < K) {
             if (result.empty()) {
                 knn.push_back(0);

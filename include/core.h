@@ -42,19 +42,23 @@ const int M_Q0123 = 24;
 const int EF_CONSTRUCTION_Q0123 = 140;
 
 // EF_SEARCH
-const int EFS_Q0_BASE = 1024;
-const int EFS_Q1_BASE = 144;
-const double EFS_Q1_K = 1024;
-const int EFS_Q2_BASE = 144;
-const double EFS_Q2_K = 1024;
-const int EFS_Q3_BASE = 144;
-const double EFS_Q3_K = 1024;
+const int EFS_WHOLE_BASE = 1024;
+const int EFS_LABEL_BASE = 512;
+const double EFS_LABEL_K = 1024;
+const int EFS_FILTER_WHOLE_BASE = 144;
+const double EFS_FILTER_WHOLE_K = 1024 + 256;
+const int EFS_FILTER_LABEL_BASE = 144;
+const double EFS_FILTER_LABEL_K = 1024;
 
-const std::vector<double> SEGEMENTS = {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1};
+const std::vector<double> SEGEMENTS_WHOLE = {0.2, 0.3, 0.4, 0.5, 0.8, 0.9, 1};
+const std::vector<double> SEGEMENTS_LABEL = {0.3, 0.5, 0.8, 0.9, 1};
 
-const int BF_THRESHOLD_Q1 = 55000;
 const int BF_THRESHOLD_Q2 = 55000;
-const int BF_THRESHOLD_Q3 = 55000;
+const int BF_THRESHOLD_Q3 = 35000;
+
+const int HNSW_BUILD_THRESHOLD = 500;
+const int HNSW_MERGE_THRESHOLD = 1000000;
+const int HNSW_PARTIAL_BUILD_THRESHOLD = 500000;
 
 // change result state here
 // 0bXXXX, X = 0(close) or 1(open)

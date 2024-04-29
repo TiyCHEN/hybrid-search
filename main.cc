@@ -3,6 +3,7 @@
 #include "data_format.h"
 #include "query_type02.h"
 #include "query_type13.h"
+#include "query_type0123.h"
 
 int main(int argc, char** argv) {
     std::string source_path = "../data/dummy-data.bin";
@@ -35,8 +36,9 @@ int main(int argc, char** argv) {
     }
 
     base_hnsw::L2Space space(VEC_DIMENSION);
-    SolveQueryType02(space, data_set, query_set, knn_results);
-    SolveQueryType13(space, data_set, query_set, knn_results);
+    // SolveQueryType02(space, data_set, query_set, knn_results);
+    // SolveQueryType13(space, data_set, query_set, knn_results);
+    SolveQueryType0123(data_set, query_set, knn_results);
 
     // save the results
     SaveKNN(knn_results, knn_save_path);

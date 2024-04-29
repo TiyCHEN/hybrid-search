@@ -18,8 +18,11 @@ run:
 run-1m:
 	cd bin && ./main ../data/contest-data-release-1m.bin ../data/contest-queries-release-1m.bin
 
-run-10m:
+run-10m: 
 	cd bin && ./main ../data/contest-data-release-10m.bin ../data/contest-queries-release-10m.bin
+
+run-recall:
+	cd bin && ./test_recall ../data/dummy-data.bin ../data/dummy-queries.bin ../test/groundtruth-dummy.bin
 
 run-recall-1m:
 	cd bin && ./test_recall

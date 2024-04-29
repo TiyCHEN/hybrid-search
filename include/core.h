@@ -23,6 +23,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <queue>
 
 const int I32_MAX = std::numeric_limits<int32_t>::max();
 

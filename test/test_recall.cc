@@ -24,6 +24,7 @@ void Recall(std::vector<std::vector<uint32_t>>& knns,
     float recall = static_cast<float>(hit) / (N * K);
     std::cout << "Overall Recall: " << recall << std::endl;
 
+    std::ofstream file("statistic.txt");
     for (int i = 0; i < 4; i++) {
         auto cur_query_index = query_set._type_index[i];
         int hit = 0;
@@ -33,10 +34,15 @@ void Recall(std::vector<std::vector<uint32_t>>& knns,
             std::sort(knn.begin(), knn.end());
             std::sort(truth_knn.begin(), truth_knn.end());
             std::vector<uint32_t> intersection;
+            int count0 = 0;
+            for (auto item: knn) {
+                count0 += item == 0;
+            }
             std::set_intersection(knn.begin(), knn.end(), truth_knn.begin(),
                                   truth_knn.end(),
                                   std::back_inserter(intersection));
             hit += static_cast<int>(intersection.size());
+            file << count0 << " " << intersection.size() << "\n";
         }
         float recall = static_cast<float>(hit) / (cur_query_index.size() * K);
         std::cout << "Recall for Query Type " << i << ": " << recall
@@ -55,6 +61,7 @@ int main(int argc, char** argv) {
     if (argc > 1) {
         source_path = std::string(argv[1]);
         query_path = std::string(argv[2]);
+        ground_truth_path = std::string(argv[3]);
     }
 
     //  read process

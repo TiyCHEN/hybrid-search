@@ -25,8 +25,8 @@ int main(int argc, char** argv) {
     // std::cout << "read and pre-process cost: " << time_cost(s_read, e_read) << " (ms)\n";
 
     // Print Data Info
-    // std::cout << "# data points:  " << data_set.size() << "\n";
-    // std::cout << "# queries:      " << query_set.size() << "\n";
+    std::cout << "# data points:  " << data_set.size() << "\n";
+    std::cout << "# queries:      " << query_set.size() << "\n";
 
     // start processing
     std::vector<std::vector<uint32_t>> knn_results(query_set.size());

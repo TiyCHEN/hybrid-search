@@ -34,6 +34,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     double mult_{0.0}, revSize_{0.0};
     int maxlevel_{0};
+    std::shared_ptr<std::vector<std::vector<float>>> level0_neighbors_dis_;
 
     std::unique_ptr<VisitedListPool> visited_list_pool_{nullptr};
 
@@ -132,6 +133,14 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         label_offset_ = size_links_level0_ + data_size_;
         offsetLevel0_ = 0;
 
+        if (level0_neighbors_dis_ == nullptr) {
+            level0_neighbors_dis_ = std::make_shared<std::vector<std::vector<float>>>(std::vector<std::vector<float>>(max_elements));
+            #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
+            for (size_t i = 0; i < max_elements; i++) {
+                (*level0_neighbors_dis_)[i].resize(maxM0_);
+            }
+        }
+
         data_level0_memory_ = (char *) malloc(max_elements_ * size_data_per_element_);
         if (data_level0_memory_ == nullptr)
             throw std::runtime_error("Not enough memory");
@@ -188,6 +197,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
         ef_ = rhs.ef_;
         label_lookup_ = rhs.label_lookup_;
         element_timestamp_ = rhs.element_timestamp_;
+        level0_neighbors_dis_ = rhs.level0_neighbors_dis_;
         #pragma omp parallel for schedule(dynamic, CHUNK_SIZE)
         for (size_t i = 0; i < cur_element_count; i++) {
             unsigned int linkListSize = rhs.element_levels_[i] > 0 ? rhs.size_links_per_element_ * rhs.element_levels_[i] : 0;
@@ -445,6 +455,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
                     char *currObj1 = (getDataByInternalId(candidate_id));
                     dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                    // dist_t dist = (*level0_neighbors_dis_)[current_node_id][j - 1];
 
                     bool flag_consider_candidate;
                     if (!bare_bone_search && stop_condition) {
@@ -581,6 +592,7 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
 
                     char *currObj1 = (getDataByInternalId(candidate_id));
                     dist_t dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                    // dist_t dist = (*level0_neighbors_dis_)[current_node_id][j - 1];
 
                     bool flag_consider_candidate;
                     if (!bare_bone_search && stop_condition) {
@@ -709,9 +721,17 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             throw std::runtime_error("Should be not be more than M_ candidates returned by the heuristic");
 
         std::vector<tableint> selectedNeighbors;
-        selectedNeighbors.reserve(M_);
+        std::vector<float> selectedDistances;
+        if (level == 0) {
+            selectedDistances.reserve(Mcurmax);
+        }
+        // selectedNeighbors.reserve(Mcurmax);
         while (top_candidates.size() > 0) {
             selectedNeighbors.push_back(top_candidates.top().second);
+            if(level == 0) {
+              selectedDistances.push_back(top_candidates.top().first);
+            }
+
             top_candidates.pop();
         }
 
@@ -742,6 +762,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     throw std::runtime_error("Trying to make a link on a non-existent level");
 
                 data[idx] = selectedNeighbors[idx];
+                if (level == 0){
+                  (*level0_neighbors_dis_)[cur_c][idx] = selectedDistances[idx];
+                }    
             }
         }
 
@@ -779,6 +802,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
             if (!is_cur_c_present) {
                 if (sz_link_list_other < Mcurmax) {
                     data[sz_link_list_other] = cur_c;
+                    if (level == 0) {
+                      (*level0_neighbors_dis_)[selectedNeighbors[idx]][sz_link_list_other] = selectedDistances[idx];
+                    }
                     setListCount(ll_other, sz_link_list_other + 1);
                 } else {
                     // finding the "weakest" element to replace it with the new one
@@ -799,6 +825,9 @@ class RangeHierarchicalNSW : public AlgorithmInterface<dist_t> {
                     int indx = 0;
                     while (candidates.size() > 0) {
                         data[indx] = candidates.top().second;
+                        if (level == 0) {
+                          (*level0_neighbors_dis_)[selectedNeighbors[idx]][indx] = candidates.top().first;
+                        }
                         candidates.pop();
                         indx++;
                     }

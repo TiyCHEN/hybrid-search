@@ -42,11 +42,11 @@ const int M_Q0123 = 24;
 const int EF_CONSTRUCTION_Q0123 = 140;
 
 // EF_SEARCH
-const int EFS_Q0_BASE = 1024;
+const int EFS_Q0_BASE = 1024 + 64;
 const int EFS_Q1_BASE = 256 + 32;
 const double EFS_Q1_K = 1024;
 const int EFS_Q2_BASE = 144;
-const double EFS_Q2_K = 1024;
+const double EFS_Q2_K = 1024 + 256;
 const int EFS_Q3_BASE = 144;
 const double EFS_Q3_K = 1024;
 
